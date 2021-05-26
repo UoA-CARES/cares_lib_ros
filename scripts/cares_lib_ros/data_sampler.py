@@ -64,6 +64,10 @@ class DepthDataSampler(object):
 
     self.sensor_link = sensor_link
 
+    # The end effector link (body_link) has a different axis orientation than the sensor (optical_link) on the arm 
+    # See https://www.ros.org/reps/rep-0103.html for specific details on the axis definitions for body and sensors
+    # These hard coded rotations to the orienation on the ee_link will allow the rest of the code to operate as if we are pointing the sensor at the target
+    #NOTE: Once the URDF is fixed this is a single hard coded rotation change for all sensor types (optical vs body frame standards)
     self.d_roll  = d_roll * math.pi/180.0
     self.d_pitch = d_pitch * math.pi/180.0
     self.d_yaw   = d_yaw * math.pi/180.0
@@ -179,10 +183,6 @@ class DepthDataSampler(object):
   def save(self, filepath):
     pass
 
-#     elif get_rotation_flag() == "ryp2":
-#         return [0,math.pi/2,math.pi/2] 
-
-# <arg name="rotation_flag" default="11" />
 class StereoDataSampler(DepthDataSampler):
   def __init__(self):
 

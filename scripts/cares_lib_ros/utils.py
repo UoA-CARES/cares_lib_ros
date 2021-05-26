@@ -48,17 +48,30 @@ def create_pose_msg(x, y, z, rpy=None, quaternion=None):
     pose.orientation.w = quaternion[3]
     return pose
 
+def create_goal_msg(pose, action, link_id, move_mode=0):
+    # Creates a goal to send to the action server.
+    pose_goal = PlatformGoalGoal()
+    pose_goal.command = action
+    pose_goal.target_pose = pose
+    pose_goal.link_id.data = link_id
+    pose_goal.move_mode = move_mode 
+    return pose_goal
+
 def save_transform(filename, transform):
-    transform_dic = {}
     translation_dic = {}
-    rotation_dic = {}
     translation_dic["x"] = transform.transform.translation.x
     translation_dic["y"] = transform.transform.translation.y
     translation_dic["z"] = transform.transform.translation.z
+    
+    rotation_dic = {}
     rotation_dic["x"] = transform.transform.rotation.x
     rotation_dic["y"] = transform.transform.rotation.y
     rotation_dic["z"] = transform.transform.rotation.z
     rotation_dic["w"] = transform.transform.rotation.w
+    
+    transform_dic = {}
+    transform_dic["parent_frame_id"] = transform.header.frame_id
+    transform_dic["child_frame_id"]  = transform.child_frame_id
     transform_dic["translation"] = translation_dic
     transform_dic["rotation"] = rotation_dic
     
@@ -69,6 +82,8 @@ def read_transform(filepath):
     with open(filepath) as file:
         t_map = yaml.load(file, Loader=yaml.Loader)
         t = TransformStamped()
+        t.header.frame_id = t_map["parent_frame_id"]
+        t.child_frame_id  = t_map["child_frame_id"]
         t.transform.translation.x = t_map["translation"]["x"]
         t.transform.translation.y = t_map["translation"]["y"]
         t.transform.translation.z = t_map["translation"]["z"]
@@ -137,3 +152,5 @@ def rectify_images(images_left, images_right, stereo_info):
         images_left_rectified.append(left_rectified)
         images_right_rectified.append(right_rectified) 
     return images_left_rectified, images_right_rectified
+
+
