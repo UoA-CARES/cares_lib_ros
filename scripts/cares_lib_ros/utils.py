@@ -5,26 +5,22 @@ import tf
 import math 
 import time
 import yaml
-
-from cv_bridge import CvBridge
-
 from glob import glob
+import open3d as o3d
 
 from cv_bridge import CvBridge
-
 from std_msgs.msg import String
 from geometry_msgs.msg import Pose, Point, PointStamped, Quaternion, PoseStamped, TransformStamped
-
 from sensor_msgs.msg import Image, CameraInfo
-
 from tf.transformations import quaternion_from_euler, euler_from_quaternion, quaternion_multiply
-from math import pi
-
-import numpy as np
-import cv2
-
 import tf2_ros
 import tf2_geometry_msgs
+from platform_msgs.msg import PlatformGoalGoal
+import ros_numpy
+
+from math import pi
+import numpy as np
+import cv2
 
 from datetime import datetime
 
@@ -154,3 +150,40 @@ def rectify_images(images_left, images_right, stereo_info):
     return images_left_rectified, images_right_rectified
 
 
+def pointCloud2Open3D(point_cloud):
+    pc = ros_numpy.point_cloud2.pointcloud2_to_array(point_cloud)
+    pc = pc.flatten()
+    pc = ros_numpy.point_cloud2.split_rgb_field(pc)
+    
+    xyzrgb = np.zeros((pc.shape[0],6))
+    xyzrgb[:,0]=pc['x']
+    xyzrgb[:,1]=pc['y']
+    xyzrgb[:,2]=pc['z']
+    xyzrgb[:,3]=pc['r']
+    xyzrgb[:,4]=pc['g']
+    xyzrgb[:,5]=pc['b']
+    xyzrgb = xyzrgb[~np.isnan(xyzrgb).any(axis=1)]
+
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(xyzrgb[:,:3])
+    pcd.colors = o3d.utility.Vector3dVector(np.divide(xyzrgb[:,3:],255.0))
+    return pcd
+
+def transform_open3d(xyzrgb, transform):
+    translation = transform.transform.translation
+    x = translation.x
+    y = translation.y
+    z = translation.z
+    rotation = transform.transform.rotation
+    qx = rotation.x
+    qy = rotation.y
+    qz = rotation.z
+    qw = rotation.w
+
+    rotmat_np = np.asarray([qw,qx,qy,qz])
+    rotmat = o3d.geometry.get_rotation_matrix_from_quaternion(rotmat_np)
+    xyzrgb.rotate(rotmat,center=(0, 0, 0))
+
+    translation = np.asarray([x,y,z])
+    xyzrgb.translate(translation)
+    return xyzrgb
