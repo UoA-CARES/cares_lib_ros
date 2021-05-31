@@ -48,9 +48,6 @@ class DepthDataSampler(object):
         depth_image_topic,
         xyzrgb_topic,
         sensor_link,
-        d_roll,
-        d_pitch,
-        d_yaw,
         camera_info_topic=None,
         stereo_info_topic=None
       ):
@@ -66,14 +63,6 @@ class DepthDataSampler(object):
     self.xyzrgb      = None
 
     self.sensor_link = sensor_link
-
-    # The end effector link (body_link) has a different axis orientation than the sensor (optical_link) on the arm 
-    # See https://www.ros.org/reps/rep-0103.html for specific details on the axis definitions for body and sensors
-    # These hard coded rotations to the orienation on the ee_link will allow the rest of the code to operate as if we are pointing the sensor at the target
-    #NOTE: Once the URDF is fixed this is a single hard coded rotation change for all sensor types (optical vs body frame standards)
-    self.d_roll  = d_roll * math.pi/180.0
-    self.d_pitch = d_pitch * math.pi/180.0
-    self.d_yaw   = d_yaw * math.pi/180.0
   
     self.data_ready = False
 
@@ -208,9 +197,6 @@ class StereoDataSampler(DepthDataSampler):
         depth_image_topic=depth_image_topic,
         xyzrgb_topic=xyzrgb_topic,
         sensor_link=sensor_link,
-        d_roll=-90,
-        d_pitch=0,
-        d_yaw=0,
         stereo_info_topic=stereo_info_topic
       )
 
@@ -234,9 +220,6 @@ class DepthCameraDataSampler(DepthDataSampler):
       depth_image_topic,
       xyzrgb_topic,
       sensor_link,
-      d_roll,
-      d_pitch,
-      d_yaw,
       camera_info_topic
     ):
 
@@ -248,9 +231,6 @@ class DepthCameraDataSampler(DepthDataSampler):
           depth_image_topic=depth_image_topic,
           xyzrgb_topic=xyzrgb_topic,
           sensor_link=sensor_link,
-          d_roll=d_roll,
-          d_pitch=d_pitch,
-          d_yaw=d_yaw,
           camera_info_topic=camera_info_topic,
         )
 
@@ -280,9 +260,6 @@ class RealsenseDataSampler(DepthCameraDataSampler):
           depth_image_topic=depth_image_topic,
           xyzrgb_topic=xyzrgb_topic,
           sensor_link=sensor_link,
-          d_roll=0,
-          d_pitch=0,
-          d_yaw=90,
           camera_info_topic=camera_info_topic
         )      
 
@@ -300,8 +277,5 @@ class ZividDataSampler(DepthCameraDataSampler):
           depth_image_topic=depth_image_topic,
           xyzrgb_topic=xyzrgb_topic,
           sensor_link=sensor_link,
-          d_roll=-90,
-          d_pitch=0,
-          d_yaw=0,
           camera_info_topic=camera_info_topic
         )
