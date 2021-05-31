@@ -154,6 +154,43 @@ def scan_point():
                 path.append(pose)
     return path
 
+def scan_calibration():
+    path = []
+    
+    target_pose = Pose()
+    target_pose.position.x = 0.0
+    target_pose.position.y = 0.75
+    target_pose.position.z = 0.0
+
+    #4
+    start_x = -0.2
+    step_x  = 0.1
+    end_x   = 0.2
+
+    #3
+    start_y = 0.6
+    step_y  = 0.1
+    end_y   = 0.8
+
+    #3
+    start_z = 0.6
+    step_z  = 0.1
+    end_z   = 0.8
+
+    for z in np.arange(start_z, end_z+step_z, step_z):
+        for y in np.arange(start_y, end_y+step_y, step_y):
+            for x in np.arange(start_x, end_x+step_x, step_x):
+
+                    pose = Pose()
+                    pose.position.x = x
+                    pose.position.y = y
+                    pose.position.z = z
+
+                    look_at_point(pose, target_pose)
+                    
+                    path.append(pose)
+    return path
+
 def plane_path():
     path = []
     start_x = -0.3
@@ -193,6 +230,8 @@ class PathFactory(object):
             return plane_path()
         elif path_id == 1:
             return scan_point()
-        return plane_path()
+        elif path_id == 2:
+            return scan_calibration()
+        return []
 
 scan_point()
