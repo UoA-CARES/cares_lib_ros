@@ -119,6 +119,13 @@ def look_at_point(pose_goal, marker_pose):
     # print(rot_matrix)
     matrix2quaternion(rot_matrix, pose_goal)
 
+############################################################
+#Mahla edit this function to change the path the arm follows
+############################################################
+####
+# Don't let target Y == pose Y
+###
+
 def scan_point():
     path = []
     
@@ -150,8 +157,8 @@ def scan_point():
                 pose.position.z = z
 
                 look_at_point(pose, target_pose)
-                
-                path.append(pose)
+                if y != target_pose.position.y:
+                    path.append(pose)
     return path
 
 def scan_calibration():
@@ -201,7 +208,7 @@ def plane_path():
     step_y  = 0.1
     end_y   = 0.7
 
-    start_z = 0.7
+    start_z = 0.6
     step_z  = 0.1
     end_z   = 1.2
 
@@ -233,5 +240,3 @@ class PathFactory(object):
         elif path_id == 2:
             return scan_calibration()
         return []
-
-scan_point()
