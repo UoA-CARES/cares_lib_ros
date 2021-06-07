@@ -1,242 +1,84 @@
 #! /usr/bin/env python
-import rospy
-import math
 import numpy as np
-from tf.transformations import quaternion_from_euler, euler_from_quaternion
+from scipy.spatial.transform import Rotation as R
 
-from geometry_msgs.msg import Pose
+from . import utils
 
-import tf2_ros
-import tf2_geometry_msgs
+def plane_grid(width=0.5, w_divs=4, height=0.5, h_divs=4,
+    right=[1, 0, 0], up=[0, 0, 1]):
 
-r_2_d = 180 / math.pi
+    xs=np.linspace(-width/2, width/2, w_divs)
+    ys=np.linspace(-height/2, height/2, h_divs)
 
-def normalise(p1):
-    length = math.sqrt(p1[0] * p1[0] + p1[1] * p1[1] + p1[2] * p1[2])
-    p1[0] = p1[0] / length
-    p1[1] = p1[1] / length
-    p1[2] = p1[2] / length
+    xv, yv = np.meshgrid(xs, ys)
+    points = np.stack([xv * right, yv * up], axis=1)
+    return points
 
-def crossproduct(p1, p2, cp):
-    cp[0] = p1[1] * p2[2] - p1[2] * p2[1]
-    cp[1] = p1[2] * p2[0] - p1[0] * p2[2]
-    cp[2] = p1[0] * p2[1] - p1[1] * p2[0]
+class World:
+    forward = np.array([0.0, 1.0, 0.0])
+    backward = np.array([0.0, -1.0, 0.0])
 
+    left = np.array([-1.0, 0.0, 0.0])
+    right = np.array([1.0, 0.0, 0.0])
 
-def quaternion2matrix(q, m):
-    xx = q.orientation.x * q.orientation.x
-    xy = q.orientation.x * q.orientation.y
-    xz = q.orientation.x * q.orientation.z
-    xw = q.orientation.x * q.orientation.w
-
-    yy = q.orientation.y * q.orientation.y
-    yz = q.orientation.y * q.orientation.z
-    yw = q.orientation.y * q.orientation.w
-
-    zz = q.orientation.z * q.orientation.z
-    zw = q.orientation.z * q.orientation.w
-
-    m[0][0] = 1 - 2 * ( yy + zz )
-    m[0][1] = 2 * ( xy - zw )
-    m[0][2] = 2 * ( xz + yw )
-
-    m[1][0] = 2 * ( xy + zw )
-    m[1][1] = 1 - 2 * ( xx + zz )
-    m[1][2] = 2 * ( yz - xw )
-
-    m[2][0] = 2 * ( xz - yw )
-    m[2][1] = 2 * ( yz + xw )
-    m[2][2] = 1 - 2 * ( xx + yy )
-
-    m[0][3] = m[1][3] = m[2][3] = m[3][0] = m[3][1] = m[3][2] = 0
-    m[3][3] = 1
+    up = np.array([0.0, 0.0, 1.0])
+    down = np.array([0.0, 0.0, -1.0])
 
 
-def matrix2quaternion(a, q):
-    #matrix to quaternion
-    trace = a[0][0] + a[1][1] + a[2][2]
-    if( trace > 0 ):
-        s = 0.5 / math.sqrt(trace+ 1.0)
-        q.orientation.w = 0.25 / s
-        q.orientation.x = ( a[2][1] - a[1][2] ) * s
-        q.orientation.y = ( a[0][2] - a[2][0] ) * s
-        q.orientation.z = ( a[1][0] - a[0][1] ) * s
+def look_dir_matrix(dir, up=World.up, roll=0, frame="body"):
+    forward = utils.normalize(dir)
+    left = utils.normalize(np.cross(up, forward))
+    up = np.cross(forward, left)
+
+    if frame == "body":
+        return np.stack([forward, -left, -up], axis=1)  @ R.from_euler('x', roll).as_matrix()
+    elif frame == "optical":
+        return np.stack([left, up, forward], axis=1) @ R.from_euler('z', roll).as_matrix()
     else:
-        if ( a[0][0] > a[1][1] and a[0][0] > a[2][2] ):
-        
-            s = 2.0 * math.sqrt( 1.0 + a[0][0] - a[1][1] - a[2][2])
-            q.orientation.w = (a[2][1] - a[1][2] ) / s
-            q.orientation.x = 0.25 * s
-            q.orientation.y = (a[0][1] + a[1][0] ) / s
-            q.orientation.z = (a[0][2] + a[2][0] ) / s
-        elif (a[1][1] > a[2][2]):
-            s = 2.0 * math.sqrt( 1.0 + a[1][1] - a[0][0] - a[2][2])
-            q.orientation.w = (a[0][2] - a[2][0] ) / s
-            q.orientation.x = (a[0][1] + a[1][0] ) / s
-            q.orientation.y = 0.25 * s
-            q.orientation.z = (a[1][2] + a[2][1] ) / s
-        else:
-            s = 2.0 * math.sqrt( 1.0 + a[2][2] - a[0][0] - a[1][1] )
-            q.orientation.w = (a[1][0] - a[0][1] ) / s
-            q.orientation.x = (a[0][2] + a[2][0] ) / s
-            q.orientation.y = (a[1][2] + a[2][1] ) / s
-            q.orientation.z = 0.25 * s
-
-
-# NOTE ISSUES IF X[1] i.e. pose y == target y
-def look_at_point(pose_goal, marker_pose):
-    #Z is optical axis of camera, i.e. vector from camera pointing at maker
-    X = [marker_pose.position.x - pose_goal.position.x, marker_pose.position.y - pose_goal.position.y, marker_pose.position.z - pose_goal.position.z]         
-    Y = [0.0, 0.0, 0.0]
-
-    #vectors are orthogonal, therefore dot product is zero
-    Y[0] = pose_goal.position.x
-    Y[2] = pose_goal.position.z + 0.1
-    Y[1] = (-Y[2]*X[2] - Y[0]*X[0])/X[1]
-
-    #cross product of Y and Z gives X
-    Z = [0.0, 0.0, 0.0]
-    crossproduct(X,Y,Z)
-
-    normalise(X)
-    normalise(Y)
-    normalise(Z)
-    rot_matrix = np.zeros((4,4))
-    #Note that this is now confusing because I have switch
-    rot_matrix[0][0] = X[0]
-    rot_matrix[1][0] = X[1]
-    rot_matrix[2][0] = X[2]
-    rot_matrix[0][1] = Y[0]
-    rot_matrix[1][1] = Y[1]
-    rot_matrix[2][1] = Y[2]
-    rot_matrix[0][2] = Z[0]
-    rot_matrix[1][2] = Z[1]
-    rot_matrix[2][2] = Z[2]
-    rot_matrix[3][0] = 0
-    rot_matrix[3][1] = 0
-    rot_matrix[3][2] = 0
-    rot_matrix[3][3] = 1
-    # print(rot_matrix)
-    matrix2quaternion(rot_matrix, pose_goal)
-
-############################################################
-#Mahla edit this function to change the path the arm follows
-############################################################
-####
-# Don't let target Y == pose Y
-###
-
-def scan_point():
-    path = []
+        return f"look_dir_matrix: unknown frame {frame}"
     
-    target_pose = Pose()
-    target_pose.position.x = 0.0
-    target_pose.position.y = 1.7
-    target_pose.position.z = 0.7
-    print("Target Pose")
-    print(target_pose)
-
-    start_x = -0.3
-    step_x  = 0.1
-    end_x   = 0.3
-
-    start_y = 0.7
-    step_y  = 0.1
-    end_y   = 0.7
-
-    start_z = 0.7
-    step_z  = 0.1
-    end_z   = 1.2
-
-    for z in np.arange(start_z, end_z+step_z, step_z):
-        for y in np.arange(start_y, end_y+step_y, step_y):
-            for x in np.arange(start_x, end_x+step_x, step_x):
-                pose = Pose()
-                pose.position.x = x
-                pose.position.y = y
-                pose.position.z = z
-
-                look_at_point(pose, target_pose)
-                if y != target_pose.position.y:
-                    path.append(pose)
-    return path
-
-def scan_calibration():
-    path = []
-    
-    target_pose = Pose()
-    target_pose.position.x = 0.0
-    target_pose.position.y = 0.75
-    target_pose.position.z = 0.0
-
-    #4
-    start_x = -0.2
-    step_x  = 0.1
-    end_x   = 0.2
-
-    #3
-    start_y = 0.6
-    step_y  = 0.1
-    end_y   = 0.8
-
-    #3
-    start_z = 0.6
-    step_z  = 0.1
-    end_z   = 0.8
-
-    for z in np.arange(start_z, end_z+step_z, step_z):
-        for y in np.arange(start_y, end_y+step_y, step_y):
-            for x in np.arange(start_x, end_x+step_x, step_x):
-
-                    pose = Pose()
-                    pose.position.x = x
-                    pose.position.y = y
-                    pose.position.z = z
-
-                    look_at_point(pose, target_pose)
-                    
-                    path.append(pose)
-    return path
-
-def plane_path():
-    path = []
-    start_x = -0.3
-    step_x  = 0.1
-    end_x   = 0.3
-
-    start_y = 0.7
-    step_y  = 0.1
-    end_y   = 0.7
-
-    start_z = 0.6
-    step_z  = 0.1
-    end_z   = 1.2
-
-    q = quaternion_from_euler(0, 0, 0)
-    # q = quaternion_from_euler(-60.0/180.0*math.pi, 0, 0)
-    
-    for z in np.arange(start_z, end_z+step_z, step_z):
-        for y in np.arange(start_y, end_y+step_y, step_y):
-            for x in np.arange(start_x, end_x+step_x, step_x):
-                pose = Pose()
-                pose.position.x = x
-                pose.position.y = y
-                pose.position.z = z
-
-                pose.orientation.x = q[0]
-                pose.orientation.y = q[1]
-                pose.orientation.z = q[2]
-                pose.orientation.w = q[3]
-                
-                path.append(pose)
-    return path
 
 class PathFactory(object):
-    def create_path(self, path_id):
-        if path_id == 0:
-            return plane_path()
-        elif path_id == 1:
-            return scan_point()
-        elif path_id == 2:
-            return scan_calibration()
-        return []
+    def __init__(self, home_pos, target, frame="body", up=World.up):
+        self.frame = frame
+
+        self.target = np.array(target)
+        self.home_pos = np.array(home_pos)
+
+        self.up = np.array(up)
+        self.forward = utils.normalize(target - np.array(home_pos))
+
+        self.home = self.look_dir_pose(position=self.home_pos, dir=self.forward)  
+        self.calibrate = self.randomized_orbit()
+
+    @staticmethod
+    def scan_forward(frame="body"):
+        return PathFactory(frame=frame, up=World.up, home_pos=[0, 0.6, 0.5], target=[0, 1.2, 0.5])
+
+    @staticmethod
+    def scan_down(frame="body"):
+        return PathFactory(frame=frame, up=World.forward, home_pos=[0, 0.6, 0.5], target=[0, 0.0, 0.5])
+
+
+    def look_at_matrix(self, position, target,  roll=0):  
+        return look_dir_matrix(np.array(target) - np.array(position), up=self.up, roll=roll, frame=self.frame)
+
+    def look_at_pose(self, position, target,  roll=0):
+        return utils.to_pose(position, matrix=self.look_at_matrix(position, target,  roll=roll))
+
+    def look_dir_pose(self, position, dir, roll=0):
+        return utils.to_pose(position, matrix=look_dir_matrix(dir, roll=roll))
+
+    def randomized_orbit(self, angle=utils.deg_rad(45), roll_range=utils.deg_rad(30), distance_range=(0.3, 0.8), seed=0):
+        
+        rng = np.random.default_rng(seed=seed)    
+        while True:
+            v = utils.sample_cone(-np.array(self.forward), angle, rng)
+            roll = rng.uniform(-roll_range, roll_range)
+
+            sample_pos = self.target + v * np.random.uniform(*distance_range)
+            yield self.look_at_pose(sample_pos, self.target, roll=roll)
+
+
+
+

@@ -1,80 +1,164 @@
 #!/usr/bin/env python3
-import rospy
-import roslib
-import tf
-import math 
-import time
 import yaml
 from glob import glob
 import open3d as o3d
 
-from cv_bridge import CvBridge
+import contextlib
+
+from scipy.spatial.transform import Rotation as R
+from geometry_msgs.msg import Pose, Point, Quaternion, TransformStamped
 from std_msgs.msg import String
-from geometry_msgs.msg import Pose, Point, PointStamped, Quaternion, PoseStamped, TransformStamped
-from tf.transformations import quaternion_from_euler, euler_from_quaternion, quaternion_multiply
-import tf2_ros
-import tf2_geometry_msgs
+import numpy as np
+
 from platform_msgs.msg import PlatformGoalGoal
 import ros_numpy
 
-from sensor_msgs.msg import Image, CameraInfo
+from sensor_msgs.msg import CameraInfo
 from cares_msgs.msg import StereoCameraInfo
 
-from math import pi
 import numpy as np
 import cv2
-
-from datetime import datetime
 
 from os.path import expanduser
 home = expanduser("~")
 
-def create_pose_msg(x, y, z, rpy=None, quaternion=None):
-    pose = Pose()
-    pose.position.x = x
-    pose.position.y = y
-    pose.position.z = z
 
-    if rpy is not None:
-        quaternion = quaternion_from_euler(rpy[0], rpy[1], rpy[2])
-    elif quaternion is None:
-        quaternion = [0.0,0.0,0.0,1.0]
-        
-    pose.orientation.x = quaternion[0]
-    pose.orientation.y = quaternion[1]
-    pose.orientation.z = quaternion[2]
-    pose.orientation.w = quaternion[3]
-    return pose
+def normalize(v):
+    norm = np.linalg.norm(v)
+    return v if norm == 0 else v / norm  
+
+
+def point_to_array(point):
+    return np.array([point.x, point.y, point.z])
+
+def quaternion_to_array(q):
+    return np.array([q.x, q.y, q.z, q.w])
+
+def transform_to_qt(transform):
+    return [
+        quaternion_to_array(transform.rotation),
+        point_to_array(transform.translation)
+    ]
+
+def transform_to_rt(transform):
+    return [
+        R.from_quat(quaternion_to_array(transform.rotation)).as_matrix(),
+        point_to_array(transform.translation)
+    ]
+
+
+def deg_rad(a):
+    return np.pi/180.0 * a 
+
+
+def rad_deg(a):
+    return 180.0/np.pi * a 
+
+
+def sample_cone(dir, angle, rng=None):
+    rng = rng or np.random.default_rng()
+    z = rng.uniform(np.cos(angle), 1)
+    phi = rng.uniform(0, 2.0 * np.pi)
+
+    dir = normalize(dir)
+    x = orthogonal(dir)
+    y = np.cross(dir, x)
+
+    sz = np.sqrt(1 - z*z)
+    return (x * sz * np.cos(phi) + y * sz * np.sin(phi) + z * dir)
+
+
+
+def orthogonal(v):
+    """ Find an arbitrary vector orthogonal to v """
+    not_v = np.array([1, 0, 0])
+    if np.allclose(v, not_v):
+        not_v = np.array([0, 1, 0])
+
+    return np.cross(v, not_v)
+
+
+def pose_to_qt(pose):
+    return [
+        quaternion_to_array(pose.orientation),
+        point_to_array(pose.position)
+    ]
+
+def pose_to_rt(pose):
+    return [
+        R.from_quat(quaternion_to_array(pose.orientation)).as_matrix(),
+        point_to_array(pose.position)
+    ]
+
+
+def to_pose(position, matrix=None, quaternion=None, rpy=None):
+    assert (matrix is not None or quaternion is not None or rpy is not None)
+
+    rotation = R.from_matrix(matrix) if matrix is not None\
+        else R.from_quat(quaternion) if quaternion is not None\
+        else R.from_euler(rpy)
+
+    qx, qy, qz, qw = rotation.as_quat()
+    x, y, z = position
+
+    return Pose(
+        position=Point(x, y, z), 
+        orientation=Quaternion(qx, qy, qz, qw)
+    )
+
+
+def pose_to_rt(pose):
+    q, t = pose_to_qt(pose)
+    return R.from_quat(q).as_matrix(), t
+
+def pose_to_qt(pose):
+    return [
+        quaternion_to_array(pose.orientation),
+        point_to_array(pose.position)
+    ]
+
 
 def create_goal_msg(pose, action, link_id, move_mode=0):
+    
     # Creates a goal to send to the action server.
-    pose_goal = PlatformGoalGoal()
-    pose_goal.command = action
-    pose_goal.target_pose = pose
-    pose_goal.link_id.data = link_id
-    pose_goal.move_mode = move_mode 
-    return pose_goal
+    return PlatformGoalGoal(
+        command = action,
+        target_pose = pose,
+        link_id = String(link_id),
+        move_mode = move_mode)
+
+def vector_dict(v):
+    x, y, z = v
+    return dict(x=x, y=y, z=z)
+
+def save_vector(v):
+    x, y, z = v.tolist()
+    return dict(x=x, y=y, z=z)
+
+def save_quaternion(q):
+    x, y, z, w = q.tolist()
+    return dict(x=x, y=y, z=z, w=w)
+
+def load_vector(d):
+    return np.array(d[k] for k in ['x', 'y', 'z'])
+
+def load_quaternion(d):
+    return np.array(d[k] for k in ['x', 'y', 'z', 'w'])
+
 
 def save_transform(filename, transform):
-    translation_dic = {}
-    translation_dic["x"] = transform.transform.translation.x
-    translation_dic["y"] = transform.transform.translation.y
-    translation_dic["z"] = transform.transform.translation.z
-    
-    rotation_dic = {}
-    rotation_dic["x"] = transform.transform.rotation.x
-    rotation_dic["y"] = transform.transform.rotation.y
-    rotation_dic["z"] = transform.transform.rotation.z
-    rotation_dic["w"] = transform.transform.rotation.w
-    
-    transform_dic = {}
-    transform_dic["parent_frame_id"] = transform.header.frame_id
-    transform_dic["child_frame_id"]  = transform.child_frame_id
-    transform_dic["translation"] = translation_dic
-    transform_dic["rotation"] = rotation_dic
-    
+    q, t = transform_to_qt(transform.transform)
+
+    transform_dict = dict(
+        parent_frame_id = transform.header.frame_id,
+        child_frame_id = transform.child_frame_id, 
+        translation = save_vector(t),
+        rotation = save_quaternion(q)
+    )
+   
     with open(filename, "w") as file:
-        documents = yaml.dump(transform_dic, file)
+        documents = yaml.dump(transform_dict, file)
+
 
 def read_transform(filepath):
     with open(filepath) as file:
@@ -82,13 +166,12 @@ def read_transform(filepath):
         t = TransformStamped()
         t.header.frame_id = t_map["parent_frame_id"]
         t.child_frame_id  = t_map["child_frame_id"]
-        t.transform.translation.x = t_map["translation"]["x"]
-        t.transform.translation.y = t_map["translation"]["y"]
-        t.transform.translation.z = t_map["translation"]["z"]
-        t.transform.rotation.x = t_map["rotation"]["x"]
-        t.transform.rotation.y = t_map["rotation"]["y"]
-        t.transform.rotation.z = t_map["rotation"]["z"]
-        t.transform.rotation.w = t_map["rotation"]["w"]
+
+        p = load_vector(t_map["translation"])
+        q = load_quaternion(t_map["rotation"])
+
+        t.transform.translation = Point(*p)
+        t.transform.translation = Quaternion(*q)
         return t
 
 def load_transforms(path):
@@ -156,7 +239,7 @@ def load_stereoinfo(filepath):
         return stereo_info
 
 def rectify_image(image_left, image_right, stereo_info):
-    return rectify_images([images_right], [image_right], stereo_info)
+    return rectify_images([image_left], [image_right], stereo_info)
 
 def rectify_images(images_left, images_right, stereo_info):
     w = stereo_info.left_info.width
