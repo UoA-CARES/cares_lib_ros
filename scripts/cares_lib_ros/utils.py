@@ -119,6 +119,32 @@ def loadImages(path):
         images.append(image)
     return images, files
 
+
+def read_camerainfo_map(s_map):
+    camera_info = CameraInfo()
+    camera_info.header.frame_id = s_map["header"]["frame_id"]
+    camera_info.height = s_map["height"]
+    camera_info.width  = s_map["width"]
+    camera_info.distortion_model = s_map["distortion_model"]
+    camera_info.D = s_map["D"]
+    camera_info.K = s_map["K"]
+    camera_info.R = s_map["R"]
+    camera_info.P = s_map["P"]
+    camera_info.binning_x = s_map["binning_x"]
+    camera_info.binning_y = s_map["binning_y"]
+
+    camera_info.roi.x_offset   = s_map["roi"]["x_offset"]
+    camera_info.roi.y_offset   = s_map["roi"]["y_offset"]
+    camera_info.roi.height     = s_map["roi"]["height"]
+    camera_info.roi.width      = s_map["roi"]["width"]
+    camera_info.roi.do_rectify = s_map["roi"]["do_rectify"]
+    return camera_info
+
+def load_camerainfo(filepath):
+    with open(filepath) as file:
+        s_map = yaml.load(file, Loader=yaml.Loader)
+        return read_camerainfo_map(s_map)    
+
 def load_stereoinfo(filepath):
     with open(filepath) as file:
         s_map = yaml.load(file, Loader=yaml.Loader)
@@ -126,28 +152,8 @@ def load_stereoinfo(filepath):
         stereo_info = StereoCameraInfo()
         stereo_info.header.frame_id = s_map["header"]["frame_id"]
 
-        def load_camerainfo(s_map):
-            camera_info = CameraInfo()
-            camera_info.header.frame_id = s_map["header"]["frame_id"]
-            camera_info.height = s_map["height"]
-            camera_info.width  = s_map["width"]
-            camera_info.distortion_model = s_map["distortion_model"]
-            camera_info.D = s_map["D"]
-            camera_info.K = s_map["K"]
-            camera_info.R = s_map["R"]
-            camera_info.P = s_map["P"]
-            camera_info.binning_x = s_map["binning_x"]
-            camera_info.binning_y = s_map["binning_y"]
-
-            camera_info.roi.x_offset   = s_map["roi"]["x_offset"]
-            camera_info.roi.y_offset   = s_map["roi"]["y_offset"]
-            camera_info.roi.height     = s_map["roi"]["height"]
-            camera_info.roi.width      = s_map["roi"]["width"]
-            camera_info.roi.do_rectify = s_map["roi"]["do_rectify"]
-            return camera_info
-
-        stereo_info.left_info  = load_camerainfo(s_map["left_info"])
-        stereo_info.right_info = load_camerainfo(s_map["right_info"])
+        stereo_info.left_info  = read_camerainfo_map(s_map["left_info"])
+        stereo_info.right_info = read_camerainfo_map(s_map["right_info"])
 
         stereo_info.Q = s_map["Q"]
         stereo_info.T_left_right = s_map["T_left_right"]

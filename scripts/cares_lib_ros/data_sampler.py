@@ -44,7 +44,7 @@ class DepthDataSampler(object):
   __metaclass__ = abc.ABCMeta
   def __init__(
         self,
-        image_topics,
+        image_topic,
         depth_image_topic,
         xyzrgb_topic,
         sensor_link,
@@ -52,7 +52,9 @@ class DepthDataSampler(object):
         stereo_info_topic=None
       ):
 
-    self.image_topics      = image_topics
+    self.image_topics = {}
+    self.image_topics['image'] = image_topic
+
     self.depth_image_topic = depth_image_topic
     self.camera_info_topic = camera_info_topic
     self.stereo_info_topic = stereo_info_topic
@@ -100,6 +102,9 @@ class DepthDataSampler(object):
       elif stream_ind[i] == 'camera_info':
         self.camera_info = data
 
+      elif stream_ind[i] == 'stereo_info':
+        self.stereo_info = data
+
       elif stream_ind[i] == 'points':
         self.xyzrgb_msg_header = data.header
         # get opend3d point cloud from point cloud message
@@ -139,26 +144,28 @@ class DepthDataSampler(object):
       subs.append(sub_xyzrgb_once)
       stream_ind.append('points')
 
-    if camera_info:    
+    if camera_info:
       sub_info_once = None
       if self.stereo_info_topic != None:
         sub_info_once = message_filters.Subscriber(self.stereo_info_topic, StereoCameraInfo)
-      elif self.camera_info_topic != None:
+        subs.append(sub_info_once)  
+        stream_ind.append('stereo_info')
+      if self.camera_info_topic != None:
         sub_info_once = message_filters.Subscriber(self.camera_info_topic, CameraInfo)
-      if sub_info_once != None:
         subs.append(sub_info_once)  
         stream_ind.append('camera_info')
-    
+
     min_time = rospy.Time.now()
-    ts = message_filters.TimeSynchronizer([sub for sub in subs], 20) 
+    ts = message_filters.TimeSynchronizer([sub for sub in subs], 20)
     ts.registerCallback(self.cb_once, min_time, subs, stream_ind)
     
+    rate = rospy.Rate(10)#Hz
     while self.data_ready == False:
-        continue
+        rate.sleep()
     self.data_ready = False
 
   def save_2d_image(self, image, file_path):
-    cv2.imwrite(file_path+'_rgb.png', image)
+    cv2.imwrite(file_path+'_image_color.png', image)
 
   def save_depth_image(self, depth_image, filepath):
     cv2.imwrite(filepath+'_depth.exr', depth_image)
@@ -170,83 +177,23 @@ class DepthDataSampler(object):
     self.save_raw(str(stereo_info),filepath+"_stereo_info.yaml")
 
   def save_xyzrgb(self, xyzrgb, file_path):        
-    o3d.io.write_point_cloud(file_path+'_xyzrgb.ply', xyzrgb)
+    o3d.io.write_point_cloud(file_path+'_points.ply', xyzrgb)
 
   def save_raw(self,file, filepath):
     with open(filepath,"w") as f:
       f.write(file)
 
-  @abc.abstractmethod
   def save(self, filepath):
-    pass
-
-class StereoDataSampler(DepthDataSampler):
-  def __init__(self):
-
-    image_topics = {}
-    image_topics["left"]  = rospy.get_param('~left_image_topic', "stereo_pair/left/image_raw")
-    image_topics["right"] = rospy.get_param('~right_image_topic', "stereo_pair/right/image_raw")
-
-    depth_image_topic = rospy.get_param('~depth_image_topic', "stereo_pair/depth_image")
-    stereo_info_topic = rospy.get_param('~camera_info_topic', "stereo_pair/stereo_info")
-    xyzrgb_topic      = rospy.get_param('~xyzrgb_topic', "stereo_pair/point_cloud")
-    sensor_link       = rospy.get_param('~sensor_link', "stereo_pair/left")
-
-    super(StereoDataSampler, self).__init__(
-        image_topics=image_topics,
-        depth_image_topic=depth_image_topic,
-        xyzrgb_topic=xyzrgb_topic,
-        sensor_link=sensor_link,
-        stereo_info_topic=stereo_info_topic
-      )
-
-    self.left_image  = None
-    self.right_image = None
-      
-  def save(self, filepath):
-    if self.left_image is not None and self.right_image is not None:
-        self.save_2d_image(self.left_image, filepath+"_left")
-        self.save_2d_image(self.right_image, filepath+"_right")
-    if self.depth_image is not None:
-        self.save_depth_image(self.depth_image, filepath)
-    if self.camera_info is not None:
-        self.save_stereo_info(self.camera_info, filepath)
-    if self.xyzrgb is not None:
-        self.save_xyzrgb(self.xyzrgb, filepath)
-
-class DepthCameraDataSampler(DepthDataSampler):
-  def __init__(self,
-      image_topic,
-      depth_image_topic,
-      xyzrgb_topic,
-      sensor_link,
-      camera_info_topic
-    ):
-
-    image_topics = {}
-    image_topics["image"] = image_topic 
-
-    super(DepthCameraDataSampler, self).__init__(
-          image_topics=image_topics,
-          depth_image_topic=depth_image_topic,
-          xyzrgb_topic=xyzrgb_topic,
-          sensor_link=sensor_link,
-          camera_info_topic=camera_info_topic,
-        )
-
-    self.image = None
-
-  def save(self, filepath):
-    if self.iamge is not None:
+    if self.image is not None:
         self.save_2d_image(self.image, filepath)
     if self.depth_image is not None:
         self.save_depth_image(self.depth_image, filepath)
     if self.camera_info is not None:
-        self.save_stereo_info(self.camera_info, filepath)
+        self.save_camera_info(self.camera_info, filepath)
     if self.xyzrgb is not None:
         self.save_xyzrgb(self.xyzrgb, filepath)
 
-class RealsenseDataSampler(DepthCameraDataSampler):
+class RealsenseDataSampler(DepthDataSampler):
   def __init__(self):
     image_topic = rospy.get_param('~image_topic', "camera/color/image_raw")
 
@@ -263,7 +210,7 @@ class RealsenseDataSampler(DepthCameraDataSampler):
           camera_info_topic=camera_info_topic
         )      
 
-class ZividDataSampler(DepthCameraDataSampler):
+class ZividDataSampler(DepthDataSampler):
   def __init__(self):
     image_topic = rospy.get_param('~image_topic', "zivid_camera/color/image_color")
 
@@ -279,3 +226,39 @@ class ZividDataSampler(DepthCameraDataSampler):
           sensor_link=sensor_link,
           camera_info_topic=camera_info_topic
         )
+
+class StereoDataSampler(DepthDataSampler):
+  def __init__(self):
+
+    image_topic       = rospy.get_param('~image_topic', "stereo_pair/stereo/image_color")
+    depth_image_topic = rospy.get_param('~depth_image_topic', "stereo_pair/stereo/depth")
+    camera_info_topic = rospy.get_param('~camera_info_topic', "stereo_pair/stereo/camera_info")
+    xyzrgb_topic      = rospy.get_param('~xyzrgb_topic', "stereo_pair/stereo/points")
+    sensor_link       = rospy.get_param('~sensor_link', "stereo_pair/left_frame")
+
+    stereo_info_topic = rospy.get_param('~stereo_info_topic', "stereo_pair/stereo_info")
+
+    super(StereoDataSampler, self).__init__(
+          image_topic=image_topic,
+          depth_image_topic=depth_image_topic,
+          xyzrgb_topic=xyzrgb_topic,
+          sensor_link=sensor_link,
+          camera_info_topic=camera_info_topic,
+          stereo_info_topic=stereo_info_topic
+        )
+
+    self.image_topics["left"]  = rospy.get_param('~left_image_topic', "stereo_pair/left/image_color")
+    self.image_topics["right"] = rospy.get_param('~right_image_topic', "stereo_pair/right/image_color")
+
+    self.left_image  = None
+    self.right_image = None
+    self.stereo_info = None
+      
+  def save(self, filepath):
+    super(StereoDataSampler, self).save(filepath)
+
+    if self.left_image is not None and self.right_image is not None:
+        self.save_2d_image(self.left_image, filepath+"_left")
+        self.save_2d_image(self.right_image, filepath+"_right")
+    if self.stereo_info is not None:
+        self.save_stereo_info(self.stereo_info, filepath)
