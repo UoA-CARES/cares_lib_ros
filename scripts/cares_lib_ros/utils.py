@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
+from concurrent.futures.thread import ThreadPoolExecutor
+from tqdm import tqdm
 import yaml
-from glob import glob
 import open3d as o3d
-
-import contextlib
 
 from scipy.spatial.transform import Rotation as R
 from geometry_msgs.msg import Pose, Point, Quaternion, TransformStamped
@@ -41,6 +40,12 @@ def transform_to_qt(transform):
     ]
 
 def transform_to_rt(transform):
+    return [
+        R.from_quat(quaternion_to_array(transform.rotation)).as_matrix(),
+        point_to_array(transform.translation)
+    ]
+
+def transform_to_mat(transform):
     return [
         R.from_quat(quaternion_to_array(transform.rotation)).as_matrix(),
         point_to_array(transform.translation)
@@ -140,10 +145,10 @@ def save_quaternion(q):
     return dict(x=x, y=y, z=z, w=w)
 
 def load_vector(d):
-    return np.array(d[k] for k in ['x', 'y', 'z'])
+    return np.array([d['x'], d['y'], d['z']])
 
 def load_quaternion(d):
-    return np.array(d[k] for k in ['x', 'y', 'z', 'w'])
+    return np.array([d['x'], d['y'], d['z'], d['w']])
 
 
 def save_transform(filename, transform):
@@ -171,16 +176,12 @@ def read_transform(filepath):
         q = load_quaternion(t_map["rotation"])
 
         t.transform.translation = Point(*p)
-        t.transform.translation = Quaternion(*q)
+        t.transform.rotation = Quaternion(*q)
         return t
 
-def load_transforms(path):
-    files = glob(path)
-    files.sort()
-    print("Found {} transforms at {}".format(len(tuple(files)), path))
-    
+def load_transforms(filenames):    
     transforms = []
-    for i, file in enumerate(files):
+    for i, file in enumerate(filenames):
         try:
             transform = read_transform(file)
             transforms.append(transform)
@@ -189,18 +190,13 @@ def load_transforms(path):
             print(e)
             raise
 
-    return transforms, files
+    return transforms
 
-def loadImages(path):
-    images = []
-    files = glob(path)
-    files.sort()
-    print("Found {} images at {}".format(len(tuple(files)), path))
 
-    for i, file in enumerate(files):
-        image = cv2.imread(file)
-        images.append(image)
-    return images, files
+def load_images(filenames):
+  with ThreadPoolExecutor() as executor:
+    iter = executor.map(cv2.imread, filenames)
+    return list(tqdm(iter, total=len(filenames)))
 
 def load_stereoinfo(filepath):
     with open(filepath) as file:

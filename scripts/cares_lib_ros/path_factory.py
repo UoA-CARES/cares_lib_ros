@@ -69,7 +69,7 @@ class PathFactory(object):
     def look_dir_pose(self, position, dir, roll=0):
         return utils.to_pose(position, matrix=look_dir_matrix(dir, roll=roll))
 
-    def randomized_orbit(self, angle=utils.deg_rad(45), roll_range=utils.deg_rad(30), distance_range=(0.3, 0.8), seed=0):
+    def randomized_orbit(self, angle=utils.deg_rad(45), roll_range=utils.deg_rad(30), distance_range=(0.3, 0.6), seed=0):
         
         rng = np.random.default_rng(seed=seed)    
         while True:
