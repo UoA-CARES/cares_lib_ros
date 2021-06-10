@@ -186,7 +186,7 @@ def load_transforms(filenames):
             transform = read_transform(file)
             transforms.append(transform)
         except KeyError as e:
-            print("error at ", i)
+            print(f"error reading {file}")
             print(e)
             raise
 
