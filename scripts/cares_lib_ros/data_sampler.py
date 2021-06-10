@@ -40,7 +40,7 @@ def depth_msg_to_cv2(data):
       print(e)
     return image
 
-class DepthDataSampler(object):
+class DataSampler(object):
   __metaclass__ = abc.ABCMeta
   def __init__(
         self,
@@ -60,6 +60,7 @@ class DepthDataSampler(object):
     self.stereo_info_topic = stereo_info_topic
     self.xyzrgb_topic      = xyzrgb_topic
     
+    self.image       = None
     self.depth_image = None
     self.camera_info = None
     self.xyzrgb      = None
@@ -130,16 +131,17 @@ class DepthDataSampler(object):
     
     if rgb_image:
       for key, value in self.image_topics.items():
-        sub_image_once = message_filters.Subscriber(value, Image)
-        subs.append(sub_image_once)
-        stream_ind.append(key) 
+        if value != None:
+          sub_image_once = message_filters.Subscriber(value, Image)
+          subs.append(sub_image_once)
+          stream_ind.append(key) 
     
-    if depth_image:
+    if depth_image and self.depth_image_topic != None:
       sub_depth_image_once = message_filters.Subscriber(self.depth_image_topic, Image)
       subs.append(sub_depth_image_once)
       stream_ind.append('depth_image')
     
-    if points:    
+    if points and self.xyzrgb_topic != None:    
       sub_xyzrgb_once = message_filters.Subscriber(self.xyzrgb_topic, PointCloud2)
       subs.append(sub_xyzrgb_once)
       stream_ind.append('points')
@@ -193,7 +195,7 @@ class DepthDataSampler(object):
     if self.xyzrgb is not None:
         self.save_xyzrgb(self.xyzrgb, filepath)
 
-class RealsenseDataSampler(DepthDataSampler):
+class DepthDataSampler(DataSampler):
   def __init__(self):
     image_topic = rospy.get_param('~image_topic', "camera/color/image_raw")
 
@@ -202,7 +204,7 @@ class RealsenseDataSampler(DepthDataSampler):
     xyzrgb_topic      = rospy.get_param('~xyzrgb_topic', "camera/depth/color/points")
     sensor_link       = rospy.get_param('~sensor_link', "camera_link")
 
-    super(RealsenseDataSampler, self).__init__(
+    super(DepthDataSampler, self).__init__(
           image_topic=image_topic,
           depth_image_topic=depth_image_topic,
           xyzrgb_topic=xyzrgb_topic,
@@ -210,34 +212,17 @@ class RealsenseDataSampler(DepthDataSampler):
           camera_info_topic=camera_info_topic
         )      
 
-class ZividDataSampler(DepthDataSampler):
+class StereoDataSampler(DataSampler):
   def __init__(self):
-    image_topic = rospy.get_param('~image_topic', "zivid_camera/color/image_color")
+    image_topic       = rospy.get_param('~image_topic', None)
+    depth_image_topic = rospy.get_param('~depth_image_topic', None)
+    xyzrgb_topic      = rospy.get_param('~xyzrgb_topic', None)
 
-    depth_image_topic = rospy.get_param('~depth_image_topic', "zivid_camera/depth/image_raw")
-    camera_info_topic = rospy.get_param('~camera_info_topic', "zivid_camera/color/camera_info")
-    xyzrgb_topic      = rospy.get_param('~xyzrgb_topic', "zivid_camera/points")
-    sensor_link       = rospy.get_param('~sensor_link', "zivid_optical_frame")
-
-    super(ZividDataSampler, self).__init__(
-          image_topic=image_topic,
-          depth_image_topic=depth_image_topic,
-          xyzrgb_topic=xyzrgb_topic,
-          sensor_link=sensor_link,
-          camera_info_topic=camera_info_topic
-        )
-
-class StereoDataSampler(DepthDataSampler):
-  def __init__(self):
-
-    image_topic       = rospy.get_param('~image_topic', "stereo_pair/stereo/image_color")
-    depth_image_topic = rospy.get_param('~depth_image_topic', "stereo_pair/stereo/depth")
-    camera_info_topic = rospy.get_param('~camera_info_topic', "stereo_pair/stereo/camera_info")
-    xyzrgb_topic      = rospy.get_param('~xyzrgb_topic', "stereo_pair/stereo/points")
+    camera_info_topic = rospy.get_param('~camera_info_topic', None)
+    stereo_info_topic = rospy.get_param('~stereo_info_topic', None)
+    
     sensor_link       = rospy.get_param('~sensor_link', "stereo_pair/left_frame")
-
-    stereo_info_topic = rospy.get_param('~stereo_info_topic', "stereo_pair/stereo_info")
-
+    
     super(StereoDataSampler, self).__init__(
           image_topic=image_topic,
           depth_image_topic=depth_image_topic,

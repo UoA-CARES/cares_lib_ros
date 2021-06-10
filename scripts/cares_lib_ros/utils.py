@@ -6,6 +6,7 @@ import math
 import time
 import yaml
 from glob import glob
+from natsort import natsorted, ns
 import open3d as o3d
 
 from cv_bridge import CvBridge
@@ -28,6 +29,15 @@ from datetime import datetime
 
 from os.path import expanduser
 home = expanduser("~")
+
+def deg_rad(a):
+    return np.pi/180.0 * a
+
+def rad_deg(a):
+    return 180.0/np.pi * a
+
+def quaternion_to_array(q):
+    return np.array([q.x, q.y, q.z, q.w])
 
 def create_pose_msg(x, y, z, rpy=None, quaternion=None):
     pose = Pose()
@@ -92,8 +102,7 @@ def read_transform(filepath):
         return t
 
 def load_transforms(path):
-    files = glob(path)
-    files.sort()
+    files = natsorted(glob(path))
     print("Found {} transforms at {}".format(len(tuple(files)), path))
     
     transforms = []
@@ -110,8 +119,7 @@ def load_transforms(path):
 
 def loadImages(path):
     images = []
-    files = glob(path)
-    files.sort()
+    files = natsorted(glob(path))
     print("Found {} images at {}".format(len(tuple(files)), path))
 
     for i, file in enumerate(files):
