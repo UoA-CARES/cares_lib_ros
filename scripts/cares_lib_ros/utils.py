@@ -34,23 +34,27 @@ def quaternion_to_array(q):
     return np.array([q.x, q.y, q.z, q.w])
 
 def transform_to_qt(transform):
-    return [
+    return (
         quaternion_to_array(transform.rotation),
         point_to_array(transform.translation)
-    ]
+    )
 
 def transform_to_rt(transform):
-    return [
+    return (
         R.from_quat(quaternion_to_array(transform.rotation)).as_matrix(),
         point_to_array(transform.translation)
-    ]
+    )
 
-def transform_to_mat(transform):
-    return [
-        R.from_quat(quaternion_to_array(transform.rotation)).as_matrix(),
-        point_to_array(transform.translation)
-    ]
+def transform_to_rt(transform):
+    return (R.from_quat(quaternion_to_array(transform.rotation)).as_matrix(),
+            point_to_array(transform.translation)
+    )
 
+def rt_to_homog(r, t):
+  m = np.eye(4)
+  m[:3, :3] = r
+  m[:3, 3] = t
+  return m
 
 def deg_rad(a):
     return np.pi/180.0 * a 
