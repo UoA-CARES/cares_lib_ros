@@ -9,7 +9,7 @@ from geometry_msgs.msg import Pose
 import tf2_ros
 import tf2_geometry_msgs
 
-r_2_d = 180 / math.pi
+import cares_lib_ros.utils as utils
 
 def normalise(p1):
     length = math.sqrt(p1[0] * p1[0] + p1[1] * p1[1] + p1[2] * p1[2])
@@ -131,20 +131,20 @@ def scan_point():
     
     target_pose = Pose()
     target_pose.position.x = 0.0
-    target_pose.position.y = 1.7
+    target_pose.position.y = 1
     target_pose.position.z = 0.7
     print("Target Pose")
     print(target_pose)
 
-    start_x = -0.3
+    start_x = -0.5
     step_x  = 0.1
-    end_x   = 0.3
+    end_x   = 0.5
 
     start_y = 0.7
     step_y  = 0.1
     end_y   = 0.7
 
-    start_z = 0.7
+    start_z = 0.6
     step_z  = 0.1
     end_z   = 1.2
 
@@ -212,9 +212,9 @@ def plane_path():
     step_z  = 0.1
     end_z   = 1.2
 
-    q = quaternion_from_euler(0, 0, 0)
-    # q = quaternion_from_euler(-60.0/180.0*math.pi, 0, 0)
-    
+    yaw = utils.deg_rad(90)
+    q = quaternion_from_euler(0, 0, yaw)
+
     for z in np.arange(start_z, end_z+step_z, step_z):
         for y in np.arange(start_y, end_y+step_y, step_y):
             for x in np.arange(start_x, end_x+step_x, step_x):

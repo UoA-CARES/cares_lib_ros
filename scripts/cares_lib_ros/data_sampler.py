@@ -33,9 +33,11 @@ def image_msg_to_cv2(data):
 def depth_msg_to_cv2(data):
     try:
       bridge = CvBridge()
-      image = bridge.imgmsg_to_cv2(data, "32FC1")
-      #if data.encoding == "rgb8":
-      #    rgb = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+
+      image = bridge.imgmsg_to_cv2(data, data.encoding)
+      print(data.encoding)
+      print(np.max(image))
+      print(np.min(image))
     except CvBridgeError as e:
       print(e)
     return image
@@ -170,7 +172,9 @@ class DataSampler(object):
     cv2.imwrite(file_path+'_image_color.png', image)
 
   def save_depth_image(self, depth_image, filepath):
-    cv2.imwrite(filepath+'_depth.exr', depth_image)
+    # cv2.imwrite(filepath+'_depth.exr', depth_image)
+    cv2.imwrite(filepath+'_depth.png', depth_image)
+    cv2.imwrite(filepath+'_depth.tif', depth_image)
 
   def save_camera_info(self, camera_info, filepath):
     self.save_raw(str(camera_info),filepath+"_camera_info.yaml")
