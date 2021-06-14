@@ -33,11 +33,7 @@ def image_msg_to_cv2(data):
 def depth_msg_to_cv2(data):
     try:
       bridge = CvBridge()
-
       image = bridge.imgmsg_to_cv2(data, data.encoding)
-      print(data.encoding)
-      print(np.max(image))
-      print(np.min(image))
     except CvBridgeError as e:
       print(e)
     return image
