@@ -200,9 +200,9 @@ def scan_calibration():
 
 def plane_path():
     path = []
-    start_x = -0.3
+    start_x = -0.5
     step_x  = 0.1
-    end_x   = 0.3
+    end_x   = 0.5
 
     start_y = 0.7
     step_y  = 0.1

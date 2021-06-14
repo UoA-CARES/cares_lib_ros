@@ -39,7 +39,7 @@ def rad_deg(a):
 def quaternion_to_array(q):
     return np.array([q.x, q.y, q.z, q.w])
 
-def create_pose_msg(x, y, z, rpy=None, quaternion=None):
+def create_pose_msg(x, y, z, rpy=None, rpy_deg=None, quaternion=None):
     pose = Pose()
     pose.position.x = x
     pose.position.y = y
@@ -47,6 +47,8 @@ def create_pose_msg(x, y, z, rpy=None, quaternion=None):
 
     if rpy is not None:
         quaternion = quaternion_from_euler(rpy[0], rpy[1], rpy[2])
+    elif rpy_deg is not None:
+        quaternion = quaternion_from_euler(deg_red(rpy_deg[0]), deg_red(rpy_deg[1]), deg_red(rpy_deg[2]))
     elif quaternion is None:
         quaternion = [0.0,0.0,0.0,1.0]
         
