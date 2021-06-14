@@ -169,10 +169,10 @@ def scan_calibration():
     target_pose.position.y = 0.75
     target_pose.position.z = 0.0
 
-    #4
-    start_x = -0.2
+    #7
+    start_x = -0.3
     step_x  = 0.1
-    end_x   = 0.2
+    end_x   = 0.3
 
     #3
     start_y = 0.6

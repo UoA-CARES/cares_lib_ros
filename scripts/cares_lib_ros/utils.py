@@ -48,7 +48,7 @@ def create_pose_msg(x, y, z, rpy=None, rpy_deg=None, quaternion=None):
     if rpy is not None:
         quaternion = quaternion_from_euler(rpy[0], rpy[1], rpy[2])
     elif rpy_deg is not None:
-        quaternion = quaternion_from_euler(deg_red(rpy_deg[0]), deg_red(rpy_deg[1]), deg_red(rpy_deg[2]))
+        quaternion = quaternion_from_euler(deg_rad(rpy_deg[0]), deg_rad(rpy_deg[1]), deg_rad(rpy_deg[2]))
     elif quaternion is None:
         quaternion = [0.0,0.0,0.0,1.0]
         
