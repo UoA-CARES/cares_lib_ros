@@ -241,5 +241,20 @@ def transform_open3d(xyzrgb, transform):
     xyzrgb.translate(translation)
     return xyzrgb
 
+def transform_pose_stamped(pose, transform):
+    return tf2_geometry_msgs.do_transform_pose(pose, transform)
+
+def transform_pose(pose, transform):
+    pose = PoseStamped(pose=pose)
+    return transform_pose_stamped(pose, transform).pose
+
+def transform_point(point, transform):
+    return tf2_geometry_msgs.do_transform_point(point, transform)
+
+def transform_xyz(x, y, z, transform):
+    point = PointStamped(point=Point(x=x,y=y,z=z))
+    point = transform_point(point, transform)
+    return point.point.x, point.point.y, point.point.z
+
 def natsorted_list(files, remove_files=[]):
     return natsorted(list(set(glob(files)) - set(remove_files)))

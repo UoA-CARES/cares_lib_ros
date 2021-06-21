@@ -169,7 +169,7 @@ class DataSampler(object):
 
   def save_depth_image(self, depth_image, filepath):
     # cv2.imwrite(filepath+'_depth.exr', depth_image)
-    cv2.imwrite(filepath+'_depth.png', depth_image)
+    # cv2.imwrite(filepath+'_depth.png', depth_image)
     cv2.imwrite(filepath+'_depth.tif', depth_image)
 
   def save_camera_info(self, camera_info, filepath):
