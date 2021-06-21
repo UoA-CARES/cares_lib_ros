@@ -240,3 +240,6 @@ def transform_open3d(xyzrgb, transform):
     translation = np.asarray([x,y,z])
     xyzrgb.translate(translation)
     return xyzrgb
+
+def natsorted_list(files, remove_files=[]):
+    return natsorted(list(set(glob(files)) - set(remove_files)))
