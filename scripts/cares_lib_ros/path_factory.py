@@ -166,23 +166,23 @@ def scan_calibration():
     
     target_pose = Pose()
     target_pose.position.x = 0.0
-    target_pose.position.y = 0.75
+    target_pose.position.y = 0.95
     target_pose.position.z = 0.0
 
     #7
-    start_x = -0.3
+    start_x = -0.4
     step_x  = 0.1
-    end_x   = 0.3
+    end_x   = 0.4
 
     #3
-    start_y = 0.6
+    start_y = 0.8
     step_y  = 0.1
-    end_y   = 0.8
+    end_y   = 1.1
 
     #3
-    start_z = 0.6
+    start_z = 1.0
     step_z  = 0.1
-    end_z   = 0.8
+    end_z   = 1.0
 
     for z in np.arange(start_z, end_z+step_z, step_z):
         for y in np.arange(start_y, end_y+step_y, step_y):

@@ -64,6 +64,8 @@ class DataSampler(object):
     self.xyzrgb      = None
 
     self.sensor_link = sensor_link
+
+    self.time_stamp = None
   
     self.data_ready = False
 
@@ -81,6 +83,7 @@ class DataSampler(object):
     if msg_time < min_time:
       return
 
+    self.time_stamp = msgs[0].header.stamp
     for i, data in enumerate(msgs):
       if stream_ind[i] == 'image':
         self.image_msg = data
