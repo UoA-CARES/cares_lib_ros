@@ -175,9 +175,9 @@ def scan_calibration():
     end_x   = 0.4
 
     #3
-    start_y = 0.8
+    start_y = 0.9
     step_y  = 0.1
-    end_y   = 1.1
+    end_y   = 1.2
 
     #3
     start_z = 1.0
@@ -200,17 +200,17 @@ def scan_calibration():
 
 def plane_path():
     path = []
-    start_x = -0.5
+    start_x = -0.2
     step_x  = 0.1
-    end_x   = 0.5
+    end_x   = 0.2
 
-    start_y = 0.7
+    start_y = 1.0
     step_y  = 0.1
-    end_y   = 0.7
+    end_y   = 1.0
 
-    start_z = 0.6
+    start_z = 1.0
     step_z  = 0.1
-    end_z   = 1.2
+    end_z   = 1.0
 
     yaw = utils.deg_rad(90)
     q = quaternion_from_euler(0, 0, yaw)

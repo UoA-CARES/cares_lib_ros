@@ -19,6 +19,12 @@ import cares_lib_ros.utils as utils
 
 import json
 
+try:
+  from zivid_camera.srv import *
+except e:
+  print("No Zivid install found, if you want to run zivid please make sure it is installed")
+
+
 def image_msg_to_cv2(data):
   try:
       bridge = CvBridge()
@@ -42,21 +48,24 @@ class DataSampler(object):
   __metaclass__ = abc.ABCMeta
   def __init__(
         self,
+        sensor_name,
         image_topic,
         depth_image_topic,
         xyzrgb_topic,
         sensor_link,
-        camera_info_topic=None,
-        stereo_info_topic=None
+        camera_info_topic="",
+        stereo_info_topic=""
       ):
 
-    self.image_topics = {}
-    self.image_topics['image'] = image_topic
+    self.sensor_name = sensor_name
 
-    self.depth_image_topic = depth_image_topic
-    self.camera_info_topic = camera_info_topic
-    self.stereo_info_topic = stereo_info_topic
-    self.xyzrgb_topic      = xyzrgb_topic
+    self.image_topics = {}
+    self.image_topics['image'] = self.format_topic(image_topic)
+
+    self.depth_image_topic = self.format_topic(depth_image_topic)
+    self.camera_info_topic = self.format_topic(camera_info_topic)
+    self.stereo_info_topic = self.format_topic(stereo_info_topic)
+    self.xyzrgb_topic      = self.format_topic(xyzrgb_topic)
     
     self.image       = None
     self.depth_image = None
@@ -70,6 +79,9 @@ class DataSampler(object):
     self.data_ready = False
 
     self.bridge = CvBridge()
+
+  def format_topic(self, topic):
+    return self.sensor_name+"/"+topic if topic != "" else ""
 
   def cb_once(self, *args):
     stream_ind = args[-1]
@@ -132,38 +144,45 @@ class DataSampler(object):
     
     if rgb_image:
       for key, value in self.image_topics.items():
-        if value != None:
+        if value != "":
           sub_image_once = message_filters.Subscriber(value, Image)
           subs.append(sub_image_once)
-          stream_ind.append(key) 
+          stream_ind.append(key)
+          print(value)
     
-    if depth_image and self.depth_image_topic != None:
+    if depth_image and self.depth_image_topic != "":
       sub_depth_image_once = message_filters.Subscriber(self.depth_image_topic, Image)
       subs.append(sub_depth_image_once)
       stream_ind.append('depth_image')
+      print(self.depth_image_topic)
     
-    if points and self.xyzrgb_topic != None:    
+    if points and self.xyzrgb_topic != "":    
       sub_xyzrgb_once = message_filters.Subscriber(self.xyzrgb_topic, PointCloud2)
       subs.append(sub_xyzrgb_once)
       stream_ind.append('points')
+      print(self.xyzrgb_topic)
 
     if camera_info:
       sub_info_once = None
-      if self.stereo_info_topic != None:
+      if self.stereo_info_topic != "":
         sub_info_once = message_filters.Subscriber(self.stereo_info_topic, StereoCameraInfo)
         subs.append(sub_info_once)  
         stream_ind.append('stereo_info')
-      if self.camera_info_topic != None:
+        print(self.stereo_info_topic)
+
+      if self.camera_info_topic != "":
         sub_info_once = message_filters.Subscriber(self.camera_info_topic, CameraInfo)
         subs.append(sub_info_once)  
         stream_ind.append('camera_info')
+        print(self.camera_info_topic)
 
     min_time = rospy.Time.now()
     ts = message_filters.TimeSynchronizer([sub for sub in subs], 20)
     ts.registerCallback(self.cb_once, min_time, subs, stream_ind)
     
-    rate = rospy.Rate(10)#Hz
+    rate = rospy.Rate(5)#Hz
     while self.data_ready == False:
+        self.trigger_capture()
         rate.sleep()
     self.data_ready = False
 
@@ -198,35 +217,73 @@ class DataSampler(object):
     if self.xyzrgb is not None:
         self.save_xyzrgb(self.xyzrgb, filepath)
 
-class DepthDataSampler(DataSampler):
-  def __init__(self):
-    image_topic = rospy.get_param('~image_topic', "camera/color/image_raw")
+  def trigger_capture(self):
+    pass
 
-    depth_image_topic = rospy.get_param('~depth_image_topic', "camera/aligned_depth_to_color/image_raw")
-    camera_info_topic = rospy.get_param('~camera_info_topic', "camera/color/camera_info")
-    xyzrgb_topic      = rospy.get_param('~xyzrgb_topic', "camera/depth/color/points")
-    sensor_link       = rospy.get_param('~sensor_link', "camera_link")
+class DepthDataSampler(DataSampler):
+  def __init__(self, sensor_name="depth"):
+    image_topic = rospy.get_param('~'+sensor_name+'/image_topic', "")
+
+    depth_image_topic = rospy.get_param('~'+sensor_name+'/depth_image_topic', "")
+    camera_info_topic = rospy.get_param('~'+sensor_name+'/camera_info_topic', "")
+    xyzrgb_topic      = rospy.get_param('~'+sensor_name+'/xyzrgb_topic', "")
+    sensor_link       = rospy.get_param('~'+sensor_name+'/sensor_link', "")
 
     super(DepthDataSampler, self).__init__(
+          sensor_name=sensor_name,
           image_topic=image_topic,
           depth_image_topic=depth_image_topic,
           xyzrgb_topic=xyzrgb_topic,
           sensor_link=sensor_link,
           camera_info_topic=camera_info_topic
-        )      
+        )
+
+class ZividDepthDataSampler(DepthDataSampler):
+  def __init__(self, sensor_name="zivid_camera"):
+    super(ZividDepthDataSampler, self).__init__(
+          sensor_name=sensor_name
+        )
+
+    ca_suggest_settings_service = "zivid_camera/capture_assistant/suggest_settings"
+
+    rospy.wait_for_service(ca_suggest_settings_service, 30.0)
+
+    self.capture_assistant_service = rospy.ServiceProxy(
+        ca_suggest_settings_service, CaptureAssistantSuggestSettings
+    )
+
+    self.capture_assistant_suggest_settings()
+
+    self.capture_service = rospy.ServiceProxy("zivid_camera/capture", Capture)
+
+  def capture_assistant_suggest_settings(self):
+    max_capture_time = rospy.Duration.from_sec(1.20)
+    rospy.loginfo(
+        "Calling capture assistant service with max capture time = %.2f sec",
+        max_capture_time.to_sec(),
+    )
+    self.capture_assistant_service(
+        max_capture_time=max_capture_time,
+        ambient_light_frequency=CaptureAssistantSuggestSettingsRequest.AMBIENT_LIGHT_FREQUENCY_NONE,
+    )
+
+  def trigger_capture(self):
+    rospy.loginfo("Calling capture service")
+    self.capture_service()
 
 class StereoDataSampler(DataSampler):
-  def __init__(self):
-    image_topic       = rospy.get_param('~image_topic', None)
-    depth_image_topic = rospy.get_param('~depth_image_topic', None)
-    xyzrgb_topic      = rospy.get_param('~xyzrgb_topic', None)
+  def __init__(self, sensor_name="stereo"):
+    image_topic       = rospy.get_param('~'+sensor_name+'/image_topic', "")
+    depth_image_topic = rospy.get_param('~'+sensor_name+'/depth_image_topic', "")
+    xyzrgb_topic      = rospy.get_param('~'+sensor_name+'/xyzrgb_topic', "")
 
-    camera_info_topic = rospy.get_param('~camera_info_topic', None)
-    stereo_info_topic = rospy.get_param('~stereo_info_topic', None)
+    camera_info_topic = rospy.get_param('~'+sensor_name+'/camera_info_topic', "")
+    stereo_info_topic = rospy.get_param('~'+sensor_name+'/stereo_info_topic', "")
     
-    sensor_link       = rospy.get_param('~sensor_link', "stereo_pair/left_frame")
+    sensor_link       = rospy.get_param('~'+sensor_name+'/sensor_link', "")
     
     super(StereoDataSampler, self).__init__(
+          sensor_name=sensor_name,
           image_topic=image_topic,
           depth_image_topic=depth_image_topic,
           xyzrgb_topic=xyzrgb_topic,
@@ -235,8 +292,8 @@ class StereoDataSampler(DataSampler):
           stereo_info_topic=stereo_info_topic
         )
 
-    self.image_topics["left"]  = rospy.get_param('~left_image_topic', "stereo_pair/left/image_color")
-    self.image_topics["right"] = rospy.get_param('~right_image_topic', "stereo_pair/right/image_color")
+    self.image_topics["left"]  = self.format_topic(rospy.get_param('~'+sensor_name+'/left_image_topic', ""))
+    self.image_topics["right"] = self.format_topic(rospy.get_param('~'+sensor_name+'/right_image_topic', ""))
 
     self.left_image  = None
     self.right_image = None
@@ -250,3 +307,20 @@ class StereoDataSampler(DataSampler):
         self.save_2d_image(self.right_image, filepath+"_right")
     if self.stereo_info is not None:
         self.save_stereo_info(self.stereo_info, filepath)
+
+class DataSamplerFactory(object):
+  __metaclass__ = abc.ABCMeta
+  def __init__(self):
+    pass
+
+  @staticmethod
+  def create_datasampler(sensor):
+    if "depth" in sensor:
+      return DepthDataSampler(sensor_name=sensor)
+    elif "stereo" in sensor:
+      return StereoDataSampler(sensor_name=sensor)
+    elif sensor == 'zivid_camera':
+      return ZividDepthDataSampler(sensor_name=sensor)
+    else:
+        print("Undefined depth sensor type selected: "+str(sensor)+" exiting")
+        return None

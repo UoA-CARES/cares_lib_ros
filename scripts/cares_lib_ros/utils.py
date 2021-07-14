@@ -16,13 +16,16 @@ from tf.transformations import quaternion_from_euler, euler_from_quaternion, qua
 import tf2_ros
 import tf2_geometry_msgs
 from platform_msgs.msg import PlatformGoalGoal
-import ros_numpy
+
 
 from sensor_msgs.msg import Image, CameraInfo
 from cares_msgs.msg import StereoCameraInfo
 
 from math import pi
 import numpy as np
+import numpy.lib.recfunctions as rfn
+import ros_numpy
+
 import cv2
 
 from datetime import datetime
@@ -205,6 +208,10 @@ def rectify_images(images_left, images_right, stereo_info):
 
 def pointCloud2Open3D(point_cloud):
     pc = ros_numpy.point_cloud2.pointcloud2_to_array(point_cloud)
+    
+    if 'rgba' in pc.dtype.names:
+        pc = rfn.rename_fields(pc, {'rgba': 'rgb'})
+    
     pc = pc.flatten()
     pc = ros_numpy.point_cloud2.split_rgb_field(pc)
     
