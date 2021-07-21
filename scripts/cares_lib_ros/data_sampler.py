@@ -21,7 +21,7 @@ import json
 
 try:
   from zivid_camera.srv import *
-except e:
+except ImportError as error:
   print("No Zivid install found, if you want to run zivid please make sure it is installed")
 
 

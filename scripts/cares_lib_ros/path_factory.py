@@ -204,13 +204,13 @@ def plane_path():
     step_x  = 0.1
     end_x   = 0.2
 
-    start_y = 1.0
+    start_y = 0.7
     step_y  = 0.1
-    end_y   = 1.0
+    end_y   = 0.7
 
-    start_z = 1.0
+    start_z = 0.6
     step_z  = 0.1
-    end_z   = 1.0
+    end_z   = 0.8
 
     yaw = utils.deg_rad(90)
     q = quaternion_from_euler(0, 0, yaw)
