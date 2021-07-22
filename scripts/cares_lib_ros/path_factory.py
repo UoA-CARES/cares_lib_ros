@@ -166,23 +166,23 @@ def scan_calibration():
     
     target_pose = Pose()
     target_pose.position.x = 0.0
-    target_pose.position.y = 0.95
+    target_pose.position.y = 0.75
     target_pose.position.z = 0.0
 
     #7
-    start_x = -0.4
+    start_x = -0.3
     step_x  = 0.1
-    end_x   = 0.4
+    end_x   = 0.3
 
     #3
-    start_y = 0.9
+    start_y = 0.7
     step_y  = 0.1
-    end_y   = 1.2
+    end_y   = 0.8
 
     #3
-    start_z = 1.0
+    start_z = 0.7
     step_z  = 0.1
-    end_z   = 1.0
+    end_z   = 0.8
 
     for z in np.arange(start_z, end_z+step_z, step_z):
         for y in np.arange(start_y, end_y+step_y, step_y):
@@ -204,13 +204,13 @@ def plane_path():
     step_x  = 0.1
     end_x   = 0.2
 
-    start_y = 0.7
+    start_y = 0.6
     step_y  = 0.1
-    end_y   = 0.7
+    end_y   = 0.6
 
-    start_z = 0.6
+    start_z = 0.0
     step_z  = 0.1
-    end_z   = 0.8
+    end_z   = 0.4
 
     yaw = utils.deg_rad(90)
     q = quaternion_from_euler(0, 0, yaw)
