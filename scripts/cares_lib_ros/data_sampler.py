@@ -19,6 +19,7 @@ import cares_lib_ros.utils as utils
 
 import json
 
+from std_msgs.msg import Empty
 try:
   from zivid_camera.srv import *
 except ImportError as error:
@@ -271,6 +272,18 @@ class ZividDepthDataSampler(DepthDataSampler):
     rospy.loginfo("Calling capture service")
     self.capture_service()
 
+class KeaDepthDataSampler(DepthDataSampler):
+  def __init__(self, sensor_name="kea"):
+    super(KeaDepthDataSampler, self).__init__(
+          sensor_name=sensor_name
+        )
+
+    self.capture_service = rospy.ServiceProxy("kea/capture", Empty)
+
+  def trigger_capture(self):
+    rospy.loginfo("Calling capture service")
+    self.capture_service()
+
 class StereoDataSampler(DataSampler):
   def __init__(self, sensor_name="stereo"):
     image_topic       = rospy.get_param('~'+sensor_name+'/image_topic', "")
@@ -321,6 +334,7 @@ class DataSamplerFactory(object):
       return StereoDataSampler(sensor_name=sensor)
     elif sensor == 'zivid_camera':
       return ZividDepthDataSampler(sensor_name=sensor)
-    else:
-        print("Undefined depth sensor type selected: "+str(sensor)+" exiting")
-        return None
+    elif sensor == 'kea':
+      return KeaDepthDataSampler(sensor_name=sensor)
+    print("Undefined depth sensor type selected: "+str(sensor))
+    return None
