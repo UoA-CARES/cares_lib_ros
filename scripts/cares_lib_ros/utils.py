@@ -61,6 +61,12 @@ def create_pose_msg(x, y, z, rpy=None, rpy_deg=None, quaternion=None):
     pose.orientation.w = quaternion[3]
     return pose
 
+def create_pose_stamped_msg(x, y, z, frame_id, rpy=None, rpy_deg=None, quaternion=None):
+    pose = PoseStamped()
+    pose.header.frame_id = frame_id
+    pose.pose = create_pose_msg(x, y, z, rpy, rpy_deg, quaternion)
+    return pose
+
 def create_goal_msg(pose, action, link_id, move_mode=0):
     # Creates a goal to send to the action server.
     pose_goal = PlatformGoalGoal()

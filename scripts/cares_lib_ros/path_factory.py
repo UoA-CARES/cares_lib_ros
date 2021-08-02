@@ -4,7 +4,7 @@ import math
 import numpy as np
 from tf.transformations import quaternion_from_euler, euler_from_quaternion
 
-from geometry_msgs.msg import Pose
+from geometry_msgs.msg import Pose, PoseStamped
 
 import tf2_ros
 import tf2_geometry_msgs
@@ -126,7 +126,7 @@ def look_at_point(pose_goal, marker_pose):
 # Don't let target Y == pose Y
 ###
 
-def scan_point():
+def scan_point(planning_link):
     path = []
     
     target_pose = Pose()
@@ -136,9 +136,9 @@ def scan_point():
     print("Target Pose")
     print(target_pose)
 
-    start_x = -0.5
+    start_x = -0.6
     step_x  = 0.1
-    end_x   = 0.5
+    end_x   = 0.6
 
     start_y = 0.7
     step_y  = 0.1
@@ -158,31 +158,33 @@ def scan_point():
 
                 look_at_point(pose, target_pose)
                 if y != target_pose.position.y:
-                    path.append(pose)
+                    pose_stamped.header.frame_id = planning_link
+                    pose_stamped.pose = pose
+                    path.append(pose_stamped)
     return path
 
-def scan_calibration():
+def scan_calibration(planning_link):
     path = []
     
     target_pose = Pose()
     target_pose.position.x = 0.0
-    target_pose.position.y = 0.75
-    target_pose.position.z = 0.0
+    target_pose.position.y = 0.65
+    target_pose.position.z = -0.70
 
     #7
-    start_x = -0.3
+    start_x = -0.2
     step_x  = 0.1
-    end_x   = 0.3
+    end_x   = 0.2
 
     #3
-    start_y = 0.7
+    start_y = 0.6
     step_y  = 0.1
     end_y   = 0.8
 
     #3
-    start_z = 0.7
+    start_z = -0.10
     step_z  = 0.1
-    end_z   = 0.8
+    end_z   = 0.1
 
     for z in np.arange(start_z, end_z+step_z, step_z):
         for y in np.arange(start_y, end_y+step_y, step_y):
@@ -195,29 +197,32 @@ def scan_calibration():
 
                     look_at_point(pose, target_pose)
                     
-                    path.append(pose)
+                    pose_stamped.header.frame_id = planning_link
+                    pose_stamped.pose = pose
+                    path.append(pose_stamped)
     return path
 
-def plane_path():
+def plane_path(planning_link):
     path = []
-    start_x = -0.2
+    start_x = -0.4
     step_x  = 0.1
-    end_x   = 0.2
+    end_x   = 0.4
 
-    start_y = 0.6
+    start_y = 0.65
     step_y  = 0.1
-    end_y   = 0.6
+    end_y   = 0.65
 
-    start_z = 0.0
-    step_z  = 0.1
+    start_z = 0.1
+    step_z  = 0.2
     end_z   = 0.4
 
     yaw = utils.deg_rad(90)
     q = quaternion_from_euler(0, 0, yaw)
 
     for z in np.arange(start_z, end_z+step_z, step_z):
-        for y in np.arange(start_y, end_y+step_y, step_y):
+        for y in np.arange(start_y, end_y+step_y/2.0, step_y):
             for x in np.arange(start_x, end_x+step_x, step_x):
+                pose_stamped = PoseStamped()
                 pose = Pose()
                 pose.position.x = x
                 pose.position.y = y
@@ -228,15 +233,18 @@ def plane_path():
                 pose.orientation.z = q[2]
                 pose.orientation.w = q[3]
                 
-                path.append(pose)
+                #TODO extract this out to a parameter
+                pose_stamped.header.frame_id = planning_link
+                pose_stamped.pose = pose
+                path.append(pose_stamped)
     return path
 
 class PathFactory(object):
-    def create_path(self, path_id):
+    def create_path(self, path_id, planning_link):
         if path_id == 0:
-            return plane_path()
+            return plane_path(planning_link)
         elif path_id == 1:
-            return scan_point()
+            return scan_point(planning_link)
         elif path_id == 2:
-            return scan_calibration()
+            return scan_calibration(planning_link)
         return []
