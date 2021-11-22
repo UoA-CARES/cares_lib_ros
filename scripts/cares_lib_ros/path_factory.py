@@ -151,16 +151,20 @@ def scan_point(planning_link):
     for z in np.arange(start_z, end_z+step_z, step_z):
         for y in np.arange(start_y, end_y+step_y, step_y):
             for x in np.arange(start_x, end_x+step_x, step_x):
-                pose = Pose()
-                pose.position.x = x
-                pose.position.y = y
-                pose.position.z = z
-
-                look_at_point(pose, target_pose)
                 if y != target_pose.position.y:
-                    pose_stamped.header.frame_id = planning_link
-                    pose_stamped.pose = pose
-                    path.append(pose_stamped)
+
+                    pose = Pose()
+                    pose.position.x = x
+                    pose.position.y = y
+                    pose.position.z = z
+
+                    look_at_point(pose, target_pose)
+                    path.append(pose)
+
+
+                    # pose_stamped.header.frame_id = planning_link
+                    # pose_stamped.pose = pose
+                    # path.append(pose_stamped)
     return path
 
 def scan_calibration(planning_link):
@@ -189,6 +193,7 @@ def scan_calibration(planning_link):
     for z in np.arange(start_z, end_z+step_z, step_z):
         for y in np.arange(start_y, end_y+step_y, step_y):
             for x in np.arange(start_x, end_x+step_x, step_x):
+                if y != target_pose.position.y:
 
                     pose = Pose()
                     pose.position.x = x
@@ -196,10 +201,10 @@ def scan_calibration(planning_link):
                     pose.position.z = z
 
                     look_at_point(pose, target_pose)
-                    
-                    pose_stamped.header.frame_id = planning_link
-                    pose_stamped.pose = pose
-                    path.append(pose_stamped)
+                    path.append(pose)                 
+                    # pose_stamped.header.frame_id = planning_link
+                    # pose_stamped.pose = pose
+                    # path.append(pose_stamped)
     return path
 
 def plane_path(planning_link):
@@ -222,7 +227,8 @@ def plane_path(planning_link):
     for z in np.arange(start_z, end_z+step_z, step_z):
         for y in np.arange(start_y, end_y+step_y/2.0, step_y):
             for x in np.arange(start_x, end_x+step_x, step_x):
-                pose_stamped = PoseStamped()
+                # pose_stamped = PoseStamped()
+
                 pose = Pose()
                 pose.position.x = x
                 pose.position.y = y
@@ -233,10 +239,12 @@ def plane_path(planning_link):
                 pose.orientation.z = q[2]
                 pose.orientation.w = q[3]
                 
-                #TODO extract this out to a parameter
-                pose_stamped.header.frame_id = planning_link
-                pose_stamped.pose = pose
-                path.append(pose_stamped)
+                path.append(pose)
+                
+                # #TODO extract this out to a parameter
+                # pose_stamped.header.frame_id = planning_link
+                # pose_stamped.pose = pose
+                # path.append(pose_stamped)
     return path
 
 class PathFactory(object):
