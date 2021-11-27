@@ -305,6 +305,11 @@ def roll_variations(pose, angle_range=math.pi/2, stops=8, axis=Body.forward):
     return [pose] + [to_pose(t, quaternion=R.as_quat(r)) for r in concat_lists(rotations)]
 
 
+def snake_paths(pathways):
+    return [ list(reversed(points)) if i % 2 > 0 else points 
+        for i, points in enumerate(pathways)]
+
+
 class PathFactory(object):
 
     @staticmethod
@@ -335,18 +340,17 @@ class PathFactory(object):
             offset = origin + axis * x
             path_offset = [offset_pose(pose, offset) for pose in path]
 
-            if len(poses) % 2 > 0:
-                path_offset = reversed(path_offset)
             
             poses.append(path_offset)
-        return concat_lists(poses)
+        return poses
 
 
     @staticmethod 
     def arc_scan(origin, axis_range=(-0.1, 0.3), radius=0.2, segments=4, stops=4, arc_range=(-math.pi/4, math.pi/4), axes=World):
         arc = PathFactory.single_arc(segments=segments, radius=radius, arc_range=arc_range, axes=World)
-        return PathFactory.repeat_along(arc, origin, axis_range, stops, axes.right)
+        pose_arcs =  PathFactory.repeat_along(arc, origin, axis_range, stops, axes.right)
 
+        return concat_lists(snake_paths(pose_arcs))
 
 
     @staticmethod   
