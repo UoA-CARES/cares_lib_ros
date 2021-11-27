@@ -67,14 +67,25 @@ def create_pose_stamped_msg(x, y, z, frame_id, rpy=None, rpy_deg=None, quaternio
     pose.pose = create_pose_msg(x, y, z, rpy, rpy_deg, quaternion)
     return pose
 
-def create_goal_msg(pose, action, link_id, move_mode=0):
+def create_goal_msg(pose, action, link_id):
     # Creates a goal to send to the action server.
     pose_goal = PlatformGoalGoal()
     pose_goal.command = action
-    pose_goal.target_pose = pose
+    pose_goal.target_poses = [pose]
     pose_goal.link_id.data = link_id
-    pose_goal.move_mode = move_mode 
     return pose_goal
+
+
+def create_multi_goal_msg(poses, action, link_id, cartesian_path=False):
+    # Creates a goal to send to the action server.
+    pose_goal = PlatformGoalGoal()
+    pose_goal.command = action
+    pose_goal.target_poses = poses
+    pose_goal.cartesian_path = cartesian_path
+    pose_goal.link_id.data = link_id
+    return pose_goal
+
+
 
 def save_transform(filename, transform):
     translation_dic = {}
