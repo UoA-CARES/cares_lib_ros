@@ -164,42 +164,44 @@ def scan_point(planning_link):
     return path
 
 def scan_calibration(planning_link):
-    path = []
     
-    target_pose = Pose()
-    target_pose.position.x = 0.0
-    target_pose.position.y = 0.65
-    target_pose.position.z = -0.70
+    target_pose = PoseStamped()
+    target_pose.pose.position.x = 0.0
+    target_pose.pose.position.y = 1.45
+    target_pose.pose.position.z = -0.15
 
     #7
-    start_x = -0.2
+    start_x = -0.4
     step_x  = 0.1
-    end_x   = 0.2
+    end_x   = 0.4
 
     #3
-    start_y = 0.6
+    start_y = 0.8
     step_y  = 0.1
     end_y   = 0.8
 
     #3
-    start_z = -0.10
+    start_z = -0.30
     step_z  = 0.1
     end_z   = 0.1
+
+    path = {}
+    path['pathway'] = []
+    path['target'] = target_pose
 
     for z in np.arange(start_z, end_z+step_z, step_z):
         for y in np.arange(start_y, end_y+step_y, step_y):
             for x in np.arange(start_x, end_x+step_x, step_x):
-
                     pose = Pose()
                     pose.position.x = x
                     pose.position.y = y
                     pose.position.z = z
-
-                    look_at_point(pose, target_pose)
+                    look_at_point(pose, target_pose.pose)
                     
+                    pose_stamped = PoseStamped()
                     pose_stamped.header.frame_id = planning_link
                     pose_stamped.pose = pose
-                    path.append(pose_stamped)
+                    path['pathway'].append(pose_stamped)
     return path
 
 def plane_path(planning_link):

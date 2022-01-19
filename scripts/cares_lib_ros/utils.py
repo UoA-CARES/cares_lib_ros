@@ -134,11 +134,10 @@ def loadImages(path):
     print("Found {} images at {}".format(len(tuple(files)), path))
 
     for i, file in enumerate(files):
-        image = cv2.imread(file)
+        image = cv2.imread(file, cv2.IMREAD_UNCHANGED)
         images.append(image)
     return images, files
-
-
+ 
 def read_camerainfo_map(s_map):
     camera_info = CameraInfo()
     camera_info.header.frame_id = s_map["header"]["frame_id"]
