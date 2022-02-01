@@ -29,10 +29,13 @@ except ImportError as error:
 def image_msg_to_cv2(data):
   try:
       bridge = CvBridge()
-      if data.encoding == "bayer_bggr8":
-          image = bridge.imgmsg_to_cv2(data, "bgr8")
-          return image
-      image = bridge.imgmsg_to_cv2(data, data.encoding)
+      # if data.encoding == "bayer_bggr8":
+      #     image = bridge.imgmsg_to_cv2(data, "bgr8")
+      #     return image
+      # elif data.encoding == "rgba":
+      #     image = bridge.imgmsg_to_cv2(data, )
+      #     return image
+      image = bridge.imgmsg_to_cv2(data, "bgr8")
   except CvBridgeError as e:
       print(e)
   return image
