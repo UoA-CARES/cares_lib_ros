@@ -51,10 +51,9 @@ class Body:
 
 
 class Optical:
-  forward = np.array([0.0, 0.0, 1.0])
-  right = np.array([1.0, 0.0, 0.0])
-  up = np.array([0.0, -1.0, 0.0])
-
+    forward = np.array([0.0, 0.0, 1.0])
+    right = np.array([1.0, 0.0, 0.0])
+    up = np.array([0.0, -1.0, 0.0])
 
 
 def look_basis(forward, up=World.up, frame="body"):
@@ -107,27 +106,27 @@ def look_at(position, target, up=World.up, frame="body"):
     return look_basis(target - position, up=up, frame=frame)
 
 
-def look_at_pose(position, target, up=World.up):
-    return to_pose(position, look_at(position, target, up))
+def look_at_pose(position, target, up=World.up, frame="body"):
+    return to_pose(position, look_at(position, target, up, frame))
 
 def scan_calibration(planning_link):
     
-    target_pose = np.array([0.0, 1.45, -0.3])
+    target_pose = np.array([0.0, 1.1, -1.0])
 
-    #7
+    #6
     start_x = -0.25
     step_x  = 0.10
     end_x   = 0.25
 
     #3
-    start_y = 0.80
-    step_y  = 0.05
-    end_y   = 0.95
+    start_y = 0.95
+    step_y  = 0.10
+    end_y   = 1.15
 
     #3
-    start_z = -0.5
+    start_z = -0.3
     step_z  = 0.1
-    end_z   = 0.1
+    end_z   = -0.1
 
     path = {}
     path['pathway'] = []
@@ -137,7 +136,7 @@ def scan_calibration(planning_link):
         for y in np.arange(start_y, end_y+step_y, step_y):
             for x in np.arange(start_x, end_x+step_x, step_x):
                     
-                    target_pose = np.array([0, 1.45, -0.3])
+                    # target_pose = np.array([0, 1.45, -0.3])
                     # target_pose = np.array([0, 1.45, z])
                     # target_pose = np.array([x, 1.45, z])
                     pose = look_at_pose(np.array([x, y, z]), target_pose, up=World.right)
@@ -150,32 +149,30 @@ def scan_calibration(planning_link):
 
 def plane_path(planning_link):
     path = []
-    start_x = -0.4
+    start_x = -0.2
     step_x  = 0.1
-    end_x   = 0.4
+    end_x   = 0.2
 
-    start_y = 0.75
-    step_y  = 0.1
-    end_y   = 0.75
+    y = 1.1
+    # start_y = 1.1
+    # step_y  = 0.1
+    # end_y   = 1.1
 
-    start_z = -0.35
+    start_z = -0.15
     step_z  = 0.05
-    end_z   = -0.10
-
-    yaw = utils.deg_rad(90)
-    q = quaternion_from_euler(0, 0, yaw)
+    end_z   = 0.20
 
     for z in np.arange(start_z, end_z+step_z, step_z):
-        for y in np.arange(start_y, end_y+step_y, step_y):
-            for x in np.arange(start_x, end_x+step_x, step_x):
+        # for y in np.arange(start_y, end_y+step_y, step_y):
+        for x in np.arange(start_x, end_x+step_x, step_x):
 
-                target_pose = np.array([x, 1.45, z])
-                pose = look_at_pose(np.array([x, y, z]), target_pose, up=World.right)
-                
-                pose_stamped = PoseStamped()
-                pose_stamped.header.frame_id = planning_link
-                pose_stamped.pose = pose
-                path.append(pose_stamped)
+            target_pose = np.array([0, 1.70, z])
+            pose = look_at_pose(np.array([x, y, z]), target_pose, up=World.up)
+            
+            pose_stamped = PoseStamped()
+            pose_stamped.header.frame_id = planning_link
+            pose_stamped.pose = pose
+            path.append(pose_stamped)
     return path
 
 class PathFactory(object):
@@ -187,3 +184,25 @@ class PathFactory(object):
         elif path_id == 2:
             return scan_calibration(planning_link)
         return []
+
+def main():
+    import open3d as o3d
+    pose        = np.array([0,0,0])
+    target_pose = np.array([0.0,1.0,0])
+
+    print("Pose")
+    print(pose)
+    print("Target Pose")
+    print(target_pose)
+    pose = look_at_pose(pose, target_pose, up=World.up)
+    print("Pose - go")
+    print(pose)
+
+    a_q = utils.quaternion_to_array(pose.orientation)
+    a_q = np.asarray([a_q[3],a_q[0],a_q[1], a_q[2]])
+    rotmat = o3d.geometry.get_rotation_matrix_from_quaternion(a_q)
+    print("Rotation Matrix")
+    print(rotmat)
+
+if __name__ == '__main__':
+    main()
