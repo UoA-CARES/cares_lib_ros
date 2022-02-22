@@ -78,6 +78,8 @@ class DataSampler(object):
 
     self.sensor_link = sensor_link
 
+    self.frame_id = None
+
     self.time_stamp = None
   
     self.data_ready = False
@@ -104,10 +106,12 @@ class DataSampler(object):
       if stream_ind[i] == 'image':
         self.image_msg = data
         self.image = image_msg_to_cv2(data)
+        self.frame_id = self.image_msg.header.frame_id
 
       elif stream_ind[i] == 'left':
         self.left_image_msg = data
         self.left_image = image_msg_to_cv2(data)
+        self.frame_id = self.left_image_msg.header.frame_id
 
       elif stream_ind[i] == 'right':
         self.right_image_msg = data

@@ -160,7 +160,7 @@ def plane_path(planning_link):
 
     start_z = -0.15
     step_z  = 0.05
-    end_z   = 0.20
+    end_z   = 0.55
 
     for z in np.arange(start_z, end_z+step_z, step_z):
         # for y in np.arange(start_y, end_y+step_y, step_y):
@@ -173,6 +173,7 @@ def plane_path(planning_link):
             pose_stamped.header.frame_id = planning_link
             pose_stamped.pose = pose
             path.append(pose_stamped)
+
     return path
 
 class PathFactory(object):
