@@ -158,9 +158,9 @@ def plane_path(planning_link):
     # step_y  = 0.1
     # end_y   = 1.1
 
-    start_z = -0.15
-    step_z  = 0.05
-    end_z   = 0.55
+    start_z = 0.0
+    step_z  = 0.10
+    end_z   = 0.50
 
     for z in np.arange(start_z, end_z+step_z, step_z):
         # for y in np.arange(start_y, end_y+step_y, step_y):
