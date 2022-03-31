@@ -270,3 +270,6 @@ def transform_xyz(x, y, z, transform):
 
 def natsorted_list(files, remove_files=[]):
     return natsorted(list(set(glob(files)) - set(remove_files)))
+
+def random_colours(num_colours=1):
+    return [np.random.choice(range(256), size=3).tolist() for _ in range(num_colours)]
