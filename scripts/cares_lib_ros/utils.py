@@ -273,3 +273,42 @@ def natsorted_list(files, remove_files=[]):
 
 def random_colours(num_colours=1):
     return [np.random.choice(range(256), size=3).tolist() for _ in range(num_colours)]
+
+def create_pcd(rgb_image, depth_image, camera_info, depth_scale=1, depth_trunc=1000.0):
+    # Creating RGBD Image
+    o3d_depth_image = o3d.geometry.Image(depth_image)
+    o3d_rgb_image   = o3d.geometry.Image(rgb_image)
+    
+    rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(o3d_rgb_image, o3d_depth_image, depth_trunc=depth_trunc, depth_scale=depth_scale, convert_rgb_to_intensity=False)
+
+    # Extracting camera params
+    height, width  = np.array(rgb_image).shape[:2]
+
+    K = camera_info.K
+    fx = K[0]
+    fy = K[4]
+    cx = K[2]
+    cy = K[5]
+
+    pinholeCamera = o3d.camera.PinholeCameraIntrinsic(width, height, fx, fy, cx, cy)
+
+    # Generating PCD
+    pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd, pinholeCamera)
+
+    return pcd
+
+def create_instance_pcds(image, depth, masks, camera_info, depth_scale=1, depth_trunc=3.0):
+    # Generate instance masked depths
+    masked_depths = []
+    for mask in masks:
+        bool_mask = ((mask[:, :, 0] != 0) & (mask[:, :, 1] != 0) & (mask[:, :, 2] != 0)).astype(bool)
+        masked_depth = np.where(bool_mask, depth, 0)
+        masked_depths.append(masked_depth)
+
+    # Generate instance pcds
+    instance_pcds = []
+    for depth_mask in masked_depths:
+        instance_pcd = create_pcd(image, depth_mask, camera_info) # create_pcd(image, depth_mask, camera_info.K)
+        if instance_pcd.has_points():
+            instance_pcds.append(instance_pcd)
+    return instance_pcds
