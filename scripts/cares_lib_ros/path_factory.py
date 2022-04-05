@@ -12,7 +12,7 @@ from std_msgs.msg import String
 from typing import Tuple
 from scipy.spatial.transform import Rotation as R
 
-from platform_msgs.msg import PlatformGoalGoal
+from cares_msgs.msg import PlatformGoalGoal
 
 import cares_lib_ros.utils as utils
 
@@ -27,13 +27,13 @@ def to_pose(position, matrix=None, quaternion=None, rpy=None):
     x, y, z = position
 
     return Pose(
-        position=Point(x, y, z), 
+        position=Point(x, y, z),
         orientation=Quaternion(qx, qy, qz, qw)
     )
 
 def normalize(v):
     norm = np.linalg.norm(v)
-    return v if norm == 0 else v / norm  
+    return v if norm == 0 else v / norm
 
 def direction(origin, target):
   return normalize(target - origin)
@@ -59,7 +59,7 @@ class Optical:
 def look_basis(forward, up=World.up, frame="body"):
     """
         Used to build 'look at' type rotation matrices from forwards and up vector.
-        Up is not the exact 'up' direction, but recalculated after computing right. 
+        Up is not the exact 'up' direction, but recalculated after computing right.
         Coordinate frame convention is by Ros naming conventions.
         :up np.array        up vector(3d) in world coordinates
         :forward np.array   forwards vector(3d) in world coordinates to look along
@@ -70,37 +70,37 @@ def look_basis(forward, up=World.up, frame="body"):
     up = np.cross(forward, left)
 
     if frame == "body":
-        return np.stack([forward, -left, -up], axis=1)  
+        return np.stack([forward, -left, -up], axis=1)
     elif frame == "optical":
-        return np.stack([left, up, forward], axis=1) 
+        return np.stack([left, up, forward], axis=1)
     else:
         return f"look_dir_matrix: unknown frame {frame}"
-    
+
 
 def look_around(position, target, orbit_pos, frame="body"):
     """
-        Used to orbit around a port where the camera 'up' vector is pointing away from 'orbit_pos'. 
+        Used to orbit around a port where the camera 'up' vector is pointing away from 'orbit_pos'.
         The target should not point at the orbit position.
         :position np.array   camera position vector(3d)
         :target np.array     forwards vector(3d) in world coordinates to look along
-        :orbit_pos np.array  position where the camera will point 'down' towards 
+        :orbit_pos np.array  position where the camera will point 'down' towards
         :frame str           coordinate frame convention, either 'body' | 'optical'
     """
 
     forwards = normalize(target - position)
     orbit_dir = normalize(orbit_pos - position)
 
-    assert np.abs(1 - np.dot(orbit_dir, forwards)) > 1e-6, "camera should not point at the orbit position" 
+    assert np.abs(1 - np.dot(orbit_dir, forwards)) > 1e-6, "camera should not point at the orbit position"
     return look_basis(forwards, up=-orbit_dir, frame=frame)
 
 def look_at(position, target, up=World.up, frame="body"):
     """
-        Canonical look at, formed by a camera position and target along with an up vector. 
+        Canonical look at, formed by a camera position and target along with an up vector.
         Giving a camera with a consistant perceived up direction (i.e. no roll). The target
         should not be in the direction of the up vector.
         :position np.array   camera position vector(3d)
         :target np.array     forwards vector(3d) in world coordinates to look along
-        :up np.array         the world space 'up' vector 
+        :up np.array         the world space 'up' vector
         :frame str           coordinate frame convention, either 'body' | 'optical'
     """
     return look_basis(target - position, up=up, frame=frame)
@@ -110,7 +110,7 @@ def look_at_pose(position, target, up=World.up, frame="body"):
     return to_pose(position, look_at(position, target, up, frame))
 
 def scan_calibration(planning_link):
-    
+
     target_pose = np.array([0.0, 1.1, -1.0])
 
     #6
@@ -135,12 +135,12 @@ def scan_calibration(planning_link):
     for z in np.arange(start_z, end_z+step_z, step_z):
         for y in np.arange(start_y, end_y+step_y, step_y):
             for x in np.arange(start_x, end_x+step_x, step_x):
-                    
+
                     # target_pose = np.array([0, 1.45, -0.3])
                     # target_pose = np.array([0, 1.45, z])
                     # target_pose = np.array([x, 1.45, z])
                     pose = look_at_pose(np.array([x, y, z]), target_pose, up=World.right)
-                    
+
                     pose_stamped = PoseStamped()
                     pose_stamped.header.frame_id = planning_link
                     pose_stamped.pose = pose
@@ -168,7 +168,7 @@ def plane_path(planning_link):
 
             target_pose = np.array([0, 1.70, z])
             pose = look_at_pose(np.array([x, y, z]), target_pose, up=World.up)
-            
+
             pose_stamped = PoseStamped()
             pose_stamped.header.frame_id = planning_link
             pose_stamped.pose = pose

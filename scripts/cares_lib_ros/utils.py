@@ -2,7 +2,7 @@
 import rospy
 import roslib
 import tf
-import math 
+import math
 import time
 import yaml
 from glob import glob
@@ -15,7 +15,7 @@ from geometry_msgs.msg import Pose, Point, PointStamped, Quaternion, PoseStamped
 from tf.transformations import quaternion_from_euler, euler_from_quaternion, quaternion_multiply
 import tf2_ros
 import tf2_geometry_msgs
-from platform_msgs.msg import PlatformGoalGoal
+from cares_msgs.msg import PlatformGoalGoal
 
 
 from sensor_msgs.msg import Image, CameraInfo
@@ -54,7 +54,7 @@ def create_pose_msg(x, y, z, rpy=None, rpy_deg=None, quaternion=None):
         quaternion = quaternion_from_euler(deg_rad(rpy_deg[0]), deg_rad(rpy_deg[1]), deg_rad(rpy_deg[2]))
     elif quaternion is None:
         quaternion = [0.0,0.0,0.0,1.0]
-        
+
     pose.orientation.x = quaternion[0]
     pose.orientation.y = quaternion[1]
     pose.orientation.z = quaternion[2]
@@ -73,7 +73,7 @@ def create_goal_msg(pose, action, link_id, move_mode=0):
     pose_goal.command = action
     pose_goal.target_pose = pose
     pose_goal.link_id.data = link_id
-    pose_goal.move_mode = move_mode 
+    pose_goal.move_mode = move_mode
     return pose_goal
 
 def save_transform(filename, transform):
@@ -81,19 +81,19 @@ def save_transform(filename, transform):
     translation_dic["x"] = transform.transform.translation.x
     translation_dic["y"] = transform.transform.translation.y
     translation_dic["z"] = transform.transform.translation.z
-    
+
     rotation_dic = {}
     rotation_dic["x"] = transform.transform.rotation.x
     rotation_dic["y"] = transform.transform.rotation.y
     rotation_dic["z"] = transform.transform.rotation.z
     rotation_dic["w"] = transform.transform.rotation.w
-    
+
     transform_dic = {}
     transform_dic["parent_frame_id"] = transform.header.frame_id
     transform_dic["child_frame_id"]  = transform.child_frame_id
     transform_dic["translation"] = translation_dic
     transform_dic["rotation"] = rotation_dic
-    
+
     with open(filename, "w") as file:
         documents = yaml.dump(transform_dic, file)
 
@@ -115,7 +115,7 @@ def read_transform(filepath):
 def load_transforms(path):
     files = natsorted(glob(path))
     print("Found {} transforms at {}".format(len(tuple(files)), path))
-    
+
     transforms = []
     for i, file in enumerate(files):
         try:
@@ -137,7 +137,7 @@ def loadImages(path):
         image = cv2.imread(file, cv2.IMREAD_UNCHANGED)
         images.append(image)
     return images, files
- 
+
 def read_camerainfo_map(s_map):
     camera_info = CameraInfo()
     camera_info.header.frame_id = s_map["header"]["frame_id"]
@@ -161,7 +161,7 @@ def read_camerainfo_map(s_map):
 def load_camerainfo(filepath):
     with open(filepath) as file:
         s_map = yaml.load(file, Loader=yaml.Loader)
-        return read_camerainfo_map(s_map)    
+        return read_camerainfo_map(s_map)
 
 def load_stereoinfo(filepath):
     with open(filepath) as file:
@@ -190,36 +190,36 @@ def rectify_images(images_left, images_right, stereo_info):
     R1 = np.reshape(stereo_info.left_info.R, (3,3))
     P1 = np.reshape(stereo_info.left_info.P, (3,4))
     D1 = np.array(stereo_info.left_info.D)
-    
+
     K2 = np.reshape(stereo_info.right_info.K, (3,3))
     R2 = np.reshape(stereo_info.right_info.R, (3,3))
     P2 = np.reshape(stereo_info.right_info.P, (3,4))
     D2 = np.array(stereo_info.right_info.D)
-    
+
     # Q = np.reshape(stereo_info.Q, (4,4))
     # R = np.reshape(stereo_info.R_left_right,(3,3))
     # T = np.array(stereo_info.T_left_right)
-    
+
     left_map_x, left_map_y   = cv2.initUndistortRectifyMap(K1, D1, R1, P1, (w,h), cv2.CV_32FC1)
     right_map_x, right_map_y = cv2.initUndistortRectifyMap(K2, D2, R2, P2, (w,h), cv2.CV_32FC1)
     images_left_rectified = []
     images_right_rectified = []
     for i in range(len(images_left)):
-        left_rectified  = cv2.remap(images_left[i], left_map_x, left_map_y, cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)    
+        left_rectified  = cv2.remap(images_left[i], left_map_x, left_map_y, cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
         right_rectified = cv2.remap(images_right[i], right_map_x, right_map_y, cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
         images_left_rectified.append(left_rectified)
-        images_right_rectified.append(right_rectified) 
+        images_right_rectified.append(right_rectified)
     return images_left_rectified, images_right_rectified
 
 def pointCloud2Open3D(point_cloud):
     pc = ros_numpy.point_cloud2.pointcloud2_to_array(point_cloud)
-    
+
     if 'rgba' in pc.dtype.names:
         pc = rfn.rename_fields(pc, {'rgba': 'rgb'})
-    
+
     pc = pc.flatten()
     pc = ros_numpy.point_cloud2.split_rgb_field(pc)
-    
+
     xyzrgb = np.zeros((pc.shape[0],6))
     xyzrgb[:,0]=pc['x']
     xyzrgb[:,1]=pc['y']
@@ -278,7 +278,7 @@ def create_pcd(rgb_image, depth_image, camera_info, depth_scale=1, depth_trunc=1
     # Creating RGBD Image
     o3d_depth_image = o3d.geometry.Image(depth_image)
     o3d_rgb_image   = o3d.geometry.Image(rgb_image)
-    
+
     rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(o3d_rgb_image, o3d_depth_image, depth_trunc=depth_trunc, depth_scale=depth_scale, convert_rgb_to_intensity=False)
 
     # Extracting camera params
