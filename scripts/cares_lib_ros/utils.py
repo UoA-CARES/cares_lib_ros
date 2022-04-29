@@ -17,7 +17,6 @@ import tf2_ros
 import tf2_geometry_msgs
 from platform_msgs.msg import PlatformGoalGoal
 
-
 from sensor_msgs.msg import Image, CameraInfo
 from cares_msgs.msg import StereoCameraInfo
 
