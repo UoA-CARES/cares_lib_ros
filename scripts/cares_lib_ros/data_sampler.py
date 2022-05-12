@@ -277,6 +277,7 @@ class ZividDepthDataSampler(DepthDataSampler):
 
   def trigger_capture(self):
     rospy.loginfo("Calling capture service")
+    self.capture_assistant_suggest_settings()
     self.capture_service()
 
 class KeaDepthDataSampler(DepthDataSampler):

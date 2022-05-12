@@ -111,24 +111,27 @@ def look_at_pose(position, target, up=World.up, frame="body"):
     return to_pose(position, look_at(position, target, up, frame))
 
 def scan_calibration(planning_link):
-    target_pose = np.array([0, 1.8, -0.1])
+    target_pose = np.array([0, 0.7, -0.7])
 
     start_x = -0.3
     step_x  = 0.3
     end_x   = 0.3
     x_range = np.arange(start_x, end_x+step_x, step_x)
 
-    start_y = 0.9
-    step_y  = 0.20
-    end_y   = 1.1
+    start_y = 0.6
+    step_y  = 0.10
+    end_y   = 0.8
     y_range = np.arange(start_y, end_y+step_y, step_y)
 
-    start_z = -0.2
-    step_z  = 0.2
+    start_z = 0.0
+    step_z  = 0.1
     end_z   = 0.2
     z_range = np.arange(start_z, end_z+step_z, step_z)
 
     print(f"Z: {len(z_range)} Y: {len(y_range)} X: {len(x_range)}")
+    print(f"{x_range}")
+    print(f"{y_range}")
+    print(f"{z_range}")
 
     path = {}
     path['pathway'] = []
@@ -139,20 +142,21 @@ def scan_calibration(planning_link):
         for y in y_range:
             for x in x_range:
                 # target_pose = np.array([0, 1.8, z])
-                if z < 0:
-                    target_pose = np.array([0, 1.8, z])
-                else:
-                    target_pose = np.array([0, 1.8, -0.1])
+                # if z < 0:
+                #     target_pose = np.array([0, 1.8, z])
+                # else:
+                #     target_pose = np.array([0, 1.8, -0.1])
+                # target_pose = np.array([0, 2.5, z])
                 pose = look_at_pose(np.array([x, y, z]), target_pose, up=World.right)
                 
-                q_orig = [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w]
-                q_rot  = quaternion_from_euler(0, utils.deg_rad(roll), 0)
-                roll   = -roll#alternate rolls
-                q_new  = quaternion_multiply(q_rot, q_orig)
-                pose.orientation.x = q_new[0]
-                pose.orientation.y = q_new[1]
-                pose.orientation.z = q_new[2]
-                pose.orientation.w = q_new[3]
+                # q_orig = [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w]
+                # q_rot  = quaternion_from_euler(0, utils.deg_rad(roll), 0)
+                # roll   = -roll#alternate rolls
+                # q_new  = quaternion_multiply(q_rot, q_orig)
+                # pose.orientation.x = q_new[0]
+                # pose.orientation.y = q_new[1]
+                # pose.orientation.z = q_new[2]
+                # pose.orientation.w = q_new[3]
 
                 pose_stamped = PoseStamped()
                 pose_stamped.header.frame_id = planning_link
@@ -160,20 +164,30 @@ def scan_calibration(planning_link):
                 path['pathway'].append(pose_stamped)
     return path
 
-def plane_path(planning_link):
-    path = []
-    start_x = -0.4
-    step_x  = 0.2
-    end_x   = 0.4
+def look_down_a_bit(pose, roll):
+    q_orig = [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w]
+    q_rot  = quaternion_from_euler(utils.deg_rad(roll), 0, 0)
+    q_new  = quaternion_multiply(q_rot, q_orig)
+    pose.orientation.x = q_new[0]
+    pose.orientation.y = q_new[1]
+    pose.orientation.z = q_new[2]
+    pose.orientation.w = q_new[3]
+    return pose
 
-    y = 1.2
+def tomato_path(planning_link):
+    path = []
+    start_x = -0.2
+    step_x  = 0.1
+    end_x   = 0.2
+
+    y = 1.0
     # start_y = 1.1
     # step_y  = 0.1
     # end_y   = 1.1
 
-    start_z = -0.2
+    start_z = 0.0
     step_z  = 0.10
-    end_z   = 0.20
+    end_z   = 0.6
 
     for z in np.arange(start_z, end_z+step_z, step_z):
         # for y in np.arange(start_y, end_y+step_y, step_y):
@@ -182,7 +196,40 @@ def plane_path(planning_link):
             #     target_pose = np.array([x, 1.7, z+0.1])
             # else:
             #     target_pose = np.array([x, 1.7, z-0.1])
-            target_pose = np.array([x, 1.7, z])
+            target_pose = np.array([0, 2.0, z])
+            pose = look_at_pose(np.array([x, y, z]), target_pose, up=World.up)
+            pose = look_down_a_bit(pose, -15)
+        
+            pose_stamped = PoseStamped()
+            pose_stamped.header.frame_id = planning_link
+            pose_stamped.pose = pose
+            path.append(pose_stamped)
+
+    return path
+
+def plane_path(planning_link):
+    path = []
+    start_x = -0.2
+    step_x  = 0.1
+    end_x   = 0.2
+
+    y = 0.7
+    # start_y = 1.1
+    # step_y  = 0.1
+    # end_y   = 1.1
+
+    start_z = 0.0
+    step_z  = 0.10
+    end_z   = 0.3
+
+    for z in np.arange(start_z, end_z+step_z, step_z):
+        # for y in np.arange(start_y, end_y+step_y, step_y):
+        for x in np.arange(start_x, end_x+step_x, step_x):
+            # if z < 0:
+            #     target_pose = np.array([x, 1.7, z+0.1])
+            # else:
+            #     target_pose = np.array([x, 1.7, z-0.1])
+            target_pose = np.array([0, 2.0, z])
             pose = look_at_pose(np.array([x, y, z]), target_pose, up=World.up)
 
             pose_stamped = PoseStamped()
@@ -200,6 +247,8 @@ class PathFactory(object):
             return scan_point(planning_link)
         elif path_id == 2:
             return scan_calibration(planning_link)
+        elif path_id == 3:
+            return tomato_path(planning_link)
         return []
 
 def main():
