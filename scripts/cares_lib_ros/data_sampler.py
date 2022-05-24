@@ -153,19 +153,19 @@ class DataSampler(object):
     if rgb_image:
       for key, value in self.image_topics.items():
         if value != "":
-          sub_image_once = message_filters.Subscriber(value, Image)
+          sub_image_once = message_filters.Subscriber(value, Image, buff_size=2**30)
           subs.append(sub_image_once)
           stream_ind.append(key)
           print(value)
     
     if depth_image and self.depth_image_topic != "":
-      sub_depth_image_once = message_filters.Subscriber(self.depth_image_topic, Image)
+      sub_depth_image_once = message_filters.Subscriber(self.depth_image_topic, Image, buff_size=2**30)
       subs.append(sub_depth_image_once)
       stream_ind.append('depth_image')
       print(self.depth_image_topic)
     
     if points and self.xyzrgb_topic != "":    
-      sub_xyzrgb_once = message_filters.Subscriber(self.xyzrgb_topic, PointCloud2)
+      sub_xyzrgb_once = message_filters.Subscriber(self.xyzrgb_topic, PointCloud2, buff_size=2**30)
       subs.append(sub_xyzrgb_once)
       stream_ind.append('points')
       print(self.xyzrgb_topic)
@@ -185,7 +185,7 @@ class DataSampler(object):
         print(self.camera_info_topic)
 
     min_time = rospy.Time.now()
-    ts = message_filters.TimeSynchronizer([sub for sub in subs], 20)
+    ts = message_filters.TimeSynchronizer([sub for sub in subs], 10)
     ts.registerCallback(self.cb_once, min_time, subs, stream_ind)
     
     rate = rospy.Rate(5)#Hz

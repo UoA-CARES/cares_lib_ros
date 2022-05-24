@@ -111,21 +111,21 @@ def look_at_pose(position, target, up=World.up, frame="body"):
     return to_pose(position, look_at(position, target, up, frame))
 
 def scan_calibration(planning_link):
-    target_pose = np.array([0, 0.7, -0.7])
+    target_pose = np.array([0, 0.6, -0.7])
 
     start_x = -0.3
     step_x  = 0.3
     end_x   = 0.3
     x_range = np.arange(start_x, end_x+step_x, step_x)
 
-    start_y = 0.6
+    start_y = 0.5
     step_y  = 0.10
-    end_y   = 0.8
+    end_y   = 0.7
     y_range = np.arange(start_y, end_y+step_y, step_y)
 
-    start_z = 0.0
-    step_z  = 0.1
-    end_z   = 0.2
+    start_z = -0.1
+    step_z  =  0.1
+    end_z   =  0.1
     z_range = np.arange(start_z, end_z+step_z, step_z)
 
     print(f"Z: {len(z_range)} Y: {len(y_range)} X: {len(x_range)}")
@@ -209,18 +209,18 @@ def tomato_path(planning_link):
 
 def plane_path(planning_link):
     path = []
-    start_x = -0.2
+    start_x = -0.5
     step_x  = 0.1
-    end_x   = 0.2
+    end_x   = 0.5
 
-    y = 0.7
+    y = 0.5
     # start_y = 1.1
     # step_y  = 0.1
     # end_y   = 1.1
 
-    start_z = 0.0
+    start_z = -0.10
     step_z  = 0.10
-    end_z   = 0.3
+    end_z   = 0.6
 
     for z in np.arange(start_z, end_z+step_z, step_z):
         # for y in np.arange(start_y, end_y+step_y, step_y):
@@ -229,7 +229,7 @@ def plane_path(planning_link):
             #     target_pose = np.array([x, 1.7, z+0.1])
             # else:
             #     target_pose = np.array([x, 1.7, z-0.1])
-            target_pose = np.array([0, 2.0, z])
+            target_pose = np.array([x, 2.0, z])
             pose = look_at_pose(np.array([x, y, z]), target_pose, up=World.up)
 
             pose_stamped = PoseStamped()

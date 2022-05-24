@@ -66,13 +66,13 @@ def create_pose_stamped_msg(x, y, z, frame_id, rpy=None, rpy_deg=None, quaternio
     pose.pose = create_pose_msg(x, y, z, rpy, rpy_deg, quaternion)
     return pose
 
-def create_goal_msg(pose, action, link_id, move_mode=0):
+# related to PlatformGoal action - TODO move out of here to somewhere else or rename/refactor else where
+def create_goal_msg(pose, action, link_id):
     # Creates a goal to send to the action server.
     pose_goal = PlatformGoalGoal()
     pose_goal.command = action
     pose_goal.target_pose = pose
     pose_goal.link_id.data = link_id
-    pose_goal.move_mode = move_mode
     return pose_goal
 
 def save_transform(filename, transform):
@@ -311,3 +311,4 @@ def create_instance_pcds(image, depth, masks, camera_info, depth_scale=1, depth_
         if instance_pcd.has_points():
             instance_pcds.append(instance_pcd)
     return instance_pcds
+
