@@ -164,9 +164,9 @@ def scan_calibration(planning_link):
                 path['pathway'].append(pose_stamped)
     return path
 
-def look_down_a_bit(pose, roll):
+def rotate_pose(pose, roll=0, pitch=0, yaw=0):
     q_orig = [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w]
-    q_rot  = quaternion_from_euler(utils.deg_rad(roll), 0, 0)
+    q_rot  = quaternion_from_euler(utils.deg_rad(roll), utils.deg_rad(pitch), utils.deg_rad(yaw))
     q_new  = quaternion_multiply(q_rot, q_orig)
     pose.orientation.x = q_new[0]
     pose.orientation.y = q_new[1]
@@ -198,7 +198,7 @@ def tomato_path(planning_link):
             #     target_pose = np.array([x, 1.7, z-0.1])
             target_pose = np.array([0, 2.0, z])
             pose = look_at_pose(np.array([x, y, z]), target_pose, up=World.up)
-            pose = look_down_a_bit(pose, -15)
+            pose = rotate_pose(pose, roll=-15)
         
             pose_stamped = PoseStamped()
             pose_stamped.header.frame_id = planning_link
@@ -209,17 +209,17 @@ def tomato_path(planning_link):
 
 def plane_path(planning_link):
     path = []
-    start_x = -0.5
-    step_x  = 0.1
-    end_x   = 0.5
+    start_x = -0.4
+    step_x  = 0.2
+    end_x   = 0.4
 
-    y = 0.5
+    y = 0.65
     # start_y = 1.1
     # step_y  = 0.1
     # end_y   = 1.1
 
     start_z = -0.10
-    step_z  = 0.10
+    step_z  = 0.20
     end_z   = 0.6
 
     for z in np.arange(start_z, end_z+step_z, step_z):
@@ -231,7 +231,19 @@ def plane_path(planning_link):
             #     target_pose = np.array([x, 1.7, z-0.1])
             target_pose = np.array([x, 2.0, z])
             pose = look_at_pose(np.array([x, y, z]), target_pose, up=World.up)
+            pose_stamped = PoseStamped()
+            pose_stamped.header.frame_id = planning_link
+            pose_stamped.pose = pose
+            path.append(pose_stamped)
 
+            pose = rotate_pose(pose, roll=-15)
+            pose_stamped = PoseStamped()
+            pose_stamped.header.frame_id = planning_link
+            pose_stamped.pose = pose
+            path.append(pose_stamped)
+
+            target_pose = np.array([0, 2.0, z])
+            pose = look_at_pose(np.array([x, y, z]), target_pose, up=World.up)
             pose_stamped = PoseStamped()
             pose_stamped.header.frame_id = planning_link
             pose_stamped.pose = pose

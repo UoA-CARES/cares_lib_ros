@@ -153,19 +153,19 @@ class DataSampler(object):
     if rgb_image:
       for key, value in self.image_topics.items():
         if value != "":
-          sub_image_once = message_filters.Subscriber(value, Image, buff_size=2**30)
+          sub_image_once = message_filters.Subscriber(value, Image, queue_size=1, buff_size=2**30)
           subs.append(sub_image_once)
           stream_ind.append(key)
           print(value)
     
     if depth_image and self.depth_image_topic != "":
-      sub_depth_image_once = message_filters.Subscriber(self.depth_image_topic, Image, buff_size=2**30)
+      sub_depth_image_once = message_filters.Subscriber(self.depth_image_topic, Image, queue_size=1, buff_size=2**30)
       subs.append(sub_depth_image_once)
       stream_ind.append('depth_image')
       print(self.depth_image_topic)
     
     if points and self.xyzrgb_topic != "":    
-      sub_xyzrgb_once = message_filters.Subscriber(self.xyzrgb_topic, PointCloud2, buff_size=2**30)
+      sub_xyzrgb_once = message_filters.Subscriber(self.xyzrgb_topic, PointCloud2, queue_size=1, buff_size=2**30)
       subs.append(sub_xyzrgb_once)
       stream_ind.append('points')
       print(self.xyzrgb_topic)
@@ -173,19 +173,19 @@ class DataSampler(object):
     if camera_info:
       sub_info_once = None
       if self.stereo_info_topic != "":
-        sub_info_once = message_filters.Subscriber(self.stereo_info_topic, StereoCameraInfo)
+        sub_info_once = message_filters.Subscriber(self.stereo_info_topic, StereoCameraInfo, queue_size=1)
         subs.append(sub_info_once)  
         stream_ind.append('stereo_info')
         print(self.stereo_info_topic)
 
       if self.camera_info_topic != "":
-        sub_info_once = message_filters.Subscriber(self.camera_info_topic, CameraInfo)
+        sub_info_once = message_filters.Subscriber(self.camera_info_topic, CameraInfo, queue_size=1)
         subs.append(sub_info_once)  
         stream_ind.append('camera_info')
         print(self.camera_info_topic)
 
     min_time = rospy.Time.now()
-    ts = message_filters.TimeSynchronizer([sub for sub in subs], 10)
+    ts = message_filters.TimeSynchronizer([sub for sub in subs], 5)
     ts.registerCallback(self.cb_once, min_time, subs, stream_ind)
     
     rate = rospy.Rate(5)#Hz
