@@ -276,7 +276,7 @@ def random_colours(num_colours=1):
 def create_pcd(rgb_image, depth_image, camera_info, depth_scale=1, depth_trunc=1000.0):
     # Creating RGBD Image
     o3d_depth_image = o3d.geometry.Image(depth_image)
-    o3d_rgb_image   = o3d.geometry.Image(rgb_image)
+    o3d_rgb_image   = o3d.geometry.Image(cv2.cvtColor(rgb_image, cv2.COLOR_BGR2RGB))
 
     rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(o3d_rgb_image, o3d_depth_image, depth_trunc=depth_trunc, depth_scale=depth_scale, convert_rgb_to_intensity=False)
 
