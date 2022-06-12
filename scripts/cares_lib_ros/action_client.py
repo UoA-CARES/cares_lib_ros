@@ -12,7 +12,8 @@ class ActionClient(object):
         self.action_client.wait_for_server()
 
         self.status = "Idle"
-        self.feedback = feedback_type()
+        self.feedback_type = feedback_type
+        self.feedback = self.feedback_type()
         self.idle = True
         print(f"ActionClient {self.action_server} ready")
 
@@ -22,6 +23,7 @@ class ActionClient(object):
     def callback_done(self, state, result):
         rospy.loginfo(f"{self.action_server} is done. State: {str(state)}, result: {str(result)}")
         self.idle = True
+        self.feedback = self.feedback_type()
         self.status = "Done"
 
     def callback_feedback(self, feedback):

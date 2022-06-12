@@ -208,46 +208,86 @@ def tomato_path(planning_link):
     return path
 
 def plane_path(planning_link):
-    path = []
-    start_x = -0.4
-    step_x  = 0.2
-    end_x   = 0.4
+    
+    path = {}
+    
+    pose = look_at_pose(np.array([0.1, 0.6, 0.1]), np.array([0, 1.0, -0.2]), up=World.up)
+    pose_stamped = PoseStamped()
+    pose_stamped.header.frame_id = planning_link
+    pose_stamped.pose = pose
+    path['global'] = pose_stamped
+    
+    start_x = -0.5
+    step_x  =  0.1
+    end_x   =  0.5
 
-    y = 0.65
+    y = 0.5
     # start_y = 1.1
     # step_y  = 0.1
     # end_y   = 1.1
 
-    start_z = -0.10
-    step_z  = 0.20
-    end_z   = 0.6
+    start_z =  0.0
+    step_z  =  0.2
+    end_z   =  0.6
 
+    path['scanning'] = []
     for z in np.arange(start_z, end_z+step_z, step_z):
         # for y in np.arange(start_y, end_y+step_y, step_y):
         for x in np.arange(start_x, end_x+step_x, step_x):
-            # if z < 0:
-            #     target_pose = np.array([x, 1.7, z+0.1])
-            # else:
-            #     target_pose = np.array([x, 1.7, z-0.1])
-            target_pose = np.array([x, 2.0, z])
-            pose = look_at_pose(np.array([x, y, z]), target_pose, up=World.up)
+            # Flat
+            pose = look_at_pose(np.array([x, y, z]), np.array([x, 1.0, z]), up=World.up)
             pose_stamped = PoseStamped()
             pose_stamped.header.frame_id = planning_link
             pose_stamped.pose = pose
-            path.append(pose_stamped)
+            path['scanning'].append(pose_stamped)
 
-            pose = rotate_pose(pose, roll=-15)
-            pose_stamped = PoseStamped()
-            pose_stamped.header.frame_id = planning_link
-            pose_stamped.pose = pose
-            path.append(pose_stamped)
+            #if z <= 0.3:
+            #    # Up
+            #    pose = look_at_pose(np.array([x, y, z]), np.array([x, 1.0, z]), up=World.up)
+            #    pose = rotate_pose(pose, roll=30)
+            #    pose_stamped = PoseStamped()
+            #   pose_stamped.header.frame_id = planning_link
+            #    pose_stamped.pose = pose
+            #    path['scanning'].append(pose_stamped)
+            #elif z > 0.3:
+            #    pose = look_at_pose(np.array([x, y, z]), np.array([x, 1.0, z]), up=World.up)
+            #    pose_stamped = PoseStamped()
+            #    pose_stamped.header.frame_id = planning_link
+            #    pose_stamped.pose = pose
+            #    path['scanning'].append(pose_stamped)
+                
+            if x <= -0.2:
+                pose = look_at_pose(np.array([x, y, z]), np.array([start_x/2, 1.0, z]), up=World.up)
+                pose_stamped = PoseStamped()
+                pose_stamped.header.frame_id = planning_link
+                pose_stamped.pose = pose
+                path['scanning'].append(pose_stamped)
+            elif -0.2 < x < 0.0:
+                pose = look_at_pose(np.array([x, y, z]), np.array([start_x, 1.0, z]), up=World.up)
+                pose_stamped = PoseStamped()
+                pose_stamped.header.frame_id = planning_link
+                pose_stamped.pose = pose
+                path['scanning'].append(pose_stamped)
+            elif 0.2 > x > 0.0:
+                pose = look_at_pose(np.array([x, y, z]), np.array([end_x, 1.0, z]), up=World.up)
+                pose_stamped = PoseStamped()
+                pose_stamped.header.frame_id = planning_link
+                pose_stamped.pose = pose
+                path['scanning'].append(pose_stamped)
+            else:
+                pose = look_at_pose(np.array([x, y, z]), np.array([end_x/2, 1.0, z]), up=World.up)
+                pose_stamped = PoseStamped()
+                pose_stamped.header.frame_id = planning_link
+                pose_stamped.pose = pose
+                path['scanning'].append(pose_stamped)
+                
 
-            target_pose = np.array([0, 2.0, z])
-            pose = look_at_pose(np.array([x, y, z]), target_pose, up=World.up)
-            pose_stamped = PoseStamped()
-            pose_stamped.header.frame_id = planning_link
-            pose_stamped.pose = pose
-            path.append(pose_stamped)
+            # # Look center
+            # pose = look_at_pose(np.array([x, y, z]), np.array([0, 1.0, z]), up=World.up)
+            # pose_stamped = PoseStamped()
+            # pose_stamped.header.frame_id = planning_link
+            # pose_stamped.pose = pose
+            # path['scanning'].append(pose_stamped)
 
     return path
 
