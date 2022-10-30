@@ -37,11 +37,6 @@ class ActionClient(object):
                                    feedback_cb=self.callback_feedback,
                                    done_cb=self.callback_done)
 
-    def stop(self):
-        task_goal = ScanningGoal()
-        task_goal.command = ScanningGoal.STOP
-        self.send_goal(task_goal)
-
     def is_idle(self):
         return self.idle
 
