@@ -60,8 +60,9 @@ def create_pose_msg(x, y, z, rpy=None, rpy_deg=None, quaternion=None):
     pose.orientation.w = quaternion[3]
     return pose
 
-def create_pose_stamped_msg(x, y, z, frame_id, rpy=None, rpy_deg=None, quaternion=None):
+def create_pose_stamped_msg(x, y, z, frame_id, time_stamp=None, rpy=None, rpy_deg=None, quaternion=None):
     pose = PoseStamped()
+    pose.header.stamp = rospy.get_rostime() if time_stamp is None else time_stamp
     pose.header.frame_id = frame_id
     pose.pose = create_pose_msg(x, y, z, rpy, rpy_deg, quaternion)
     return pose
