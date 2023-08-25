@@ -30,6 +30,9 @@ import cv2
 from datetime import datetime
 
 from os.path import expanduser
+
+from scipy.spatial.transform import Rotation as R
+
 home = expanduser("~")
 
 def deg_rad(a):
@@ -40,6 +43,42 @@ def rad_deg(a):
 
 def quaternion_to_array(q):
     return np.array([q.x, q.y, q.z, q.w])
+
+def quaternion_multiply(q0, q1):
+    """
+    Multiplies two quaternions.
+
+    Input
+    :param q0: A 4 element array containing the first quaternion (q01, q11, q21, q31)
+    :param q1: A 4 element array containing the second quaternion (q02, q12, q22, q32)
+
+    Output
+    :return: A 4 element array containing the final quaternion (q03,q13,q23,q33)
+
+    """
+    # Extract the values from q0
+    x0 = q0[0]
+    y0 = q0[1]
+    z0 = q0[2]
+    w0 = q0[3]
+
+    # Extract the values from q1
+    x1 = q1[0]
+    y1 = q1[1]
+    z1 = q1[2]
+    w1 = q1[3]
+
+    # Computer the product of the two quaternions, term by term
+    q0q1_w = w0 * w1 - x0 * x1 - y0 * y1 - z0 * z1
+    q0q1_x = w0 * x1 + x0 * w1 + y0 * z1 - z0 * y1
+    q0q1_y = w0 * y1 - x0 * z1 + y0 * w1 + z0 * x1
+    q0q1_z = w0 * z1 + x0 * y1 - y0 * x1 + z0 * w1
+
+    # Create a 4 element array containing the final quaternion
+    final_quaternion = np.array([q0q1_x, q0q1_y, q0q1_z, q0q1_w])
+
+    # Return a 4 element array containing the final quaternion (q02,q12,q22,q32)
+    return final_quaternion
 
 def create_pose_msg(x, y, z, rpy=None, rpy_deg=None, quaternion=None):
     pose = Pose()
@@ -180,7 +219,7 @@ def load_stereoinfo(filepath):
         return stereo_info
 
 def rectify_image(image_left, image_right, stereo_info):
-    return rectify_images([images_right], [image_right], stereo_info)
+    return rectify_images([image_left], [image_right], stereo_info)
 
 def rectify_images(images_left, images_right, stereo_info):
     w = stereo_info.left_info.width
@@ -261,7 +300,12 @@ def transform_pose(pose, transform):
     return transform_pose_stamped(pose, transform).pose
 
 def transform_point(point, transform):
-    return tf2_geometry_msgs.do_transform_point(point, transform)
+    try:
+        return tf2_geometry_msgs.do_transform_point(point, transform)
+    except:
+        p = PointStamped()
+        p.point = point
+        return tf2_geometry_msgs.do_transform_point(p, transform).point
 
 def transform_xyz(x, y, z, transform):
     point = PointStamped(point=Point(x=x,y=y,z=z))
@@ -274,7 +318,7 @@ def natsorted_list(files, remove_files=[]):
 def random_colours(num_colours=1):
     return [np.random.choice(range(256), size=3).tolist() for _ in range(num_colours)]
 
-def create_pcd(rgb_image, depth_image, camera_info, depth_scale=1, depth_trunc=1000.0):
+def create_pcd(rgb_image, depth_image, camera_info, depth_scale=1, depth_trunc=1.0):
     # Creating RGBD Image
     o3d_depth_image = o3d.geometry.Image(depth_image)
     o3d_rgb_image   = o3d.geometry.Image(cv2.cvtColor(rgb_image, cv2.COLOR_BGR2RGB))
@@ -297,19 +341,133 @@ def create_pcd(rgb_image, depth_image, camera_info, depth_scale=1, depth_trunc=1
 
     return pcd
 
-def create_instance_pcds(image, depth, masks, camera_info, depth_scale=1, depth_trunc=3.0):
+def create_instance_pcds(image, depth, masks, camera_info, depth_scale=1, depth_trunc=1.0, rotate=False):              #understand this part
     # Generate instance masked depths
+    instance_pcds = {}
     masked_depths = []
+    mask_indexes = []
+
     for mask in masks:
-        bool_mask = ((mask[:, :, 0] != 0) & (mask[:, :, 1] != 0) & (mask[:, :, 2] != 0)).astype(bool)
+        bool_mask = ((mask[:, :, 0] != 0) & (mask[:, :, 1] != 0) & (mask[:, :, 2] != 0)).astype(bool)          #what does this line do?
+        
         masked_depth = np.where(bool_mask, depth, 0)
         masked_depths.append(masked_depth)
 
     # Generate instance pcds
-    instance_pcds = []
-    for depth_mask in masked_depths:
+    for i, depth_mask in enumerate(masked_depths):
+        instance_pcds[i] = {}
         instance_pcd = create_pcd(image, depth_mask, camera_info) # create_pcd(image, depth_mask, camera_info.K)
         if instance_pcd.has_points():
-            instance_pcds.append(instance_pcd)
+            instance_pcds[i]["pcd"] = instance_pcd
+            instance_pcds[i]["mask"] = masks[i]
+        if "pcd" not in instance_pcds[i].keys():
+            del instance_pcds[i]
     return instance_pcds
 
+# Pose Manipulation
+def to_pose(position, matrix=None, quaternion=None, rpy=None):
+    assert (matrix is not None or quaternion is not None or rpy is not None)
+
+    rotation = R.from_matrix(matrix) if matrix is not None\
+        else R.from_quat(quaternion)  if quaternion is not None\
+        else R.from_euler('xyz', rpy)
+
+    qx, qy, qz, qw = rotation.as_quat()
+    x, y, z = position
+
+    return Pose(
+        position=Point(x, y, z),
+        orientation=Quaternion(qx, qy, qz, qw)
+    )
+
+def normalize(v):
+    norm = np.linalg.norm(v)
+    return v if norm == 0 else v / norm
+
+def direction(origin, target):
+  return normalize(target - origin)
+
+class World:
+    forward = np.array([0.0, 1.0, 0.0])
+    right = np.array([1.0, 0.0, 0.0])
+    left = np.array([-1.0, 0.0, 0.0])
+    up = np.array([0.0, 0.0, 1.0])
+    down = np.array([0.0, 0.0, -1.0])
+
+
+class Body:
+    forward = np.array([1.0, 0.0, 0.0])
+    right = np.array([0.0, -1.0, 0.0])
+    up = np.array([0.0, 0.0, 1.0])
+    down = np.array([0.0, 0.0, -1.0])
+
+
+class Optical:
+    forward = np.array([0.0, 0.0, 1.0])
+    right = np.array([1.0, 0.0, 0.0])
+    up = np.array([0.0, -1.0, 0.0])
+    down = np.array([0.0, 1.0, 0.0])
+
+
+def look_basis(forward, up=World.up, frame="body"):
+    """
+        Used to build 'look at' type rotation matrices from forwards and up vector.
+        Up is not the exact 'up' direction, but recalculated after computing right.
+        Coordinate frame convention is by Ros naming conventions.
+        :up np.array        up vector(3d) in world coordinates
+        :forward np.array   forwards vector(3d) in world coordinates to look along
+        :frame str          coordinate frame convention, either 'body' | 'optical'
+    """
+    forward = normalize(forward)
+    left = normalize(np.cross(up, forward))
+    up = np.cross(forward, left)
+
+    if frame == "body":
+        return np.stack([forward, -left, -up], axis=1)
+    elif frame == "optical":
+        return np.stack([left, up, forward], axis=1)
+    else:
+        return f"look_dir_matrix: unknown frame {frame}"
+
+
+def look_around(position, target, orbit_pos, frame="body"):
+    """
+        Used to orbit around a port where the camera 'up' vector is pointing away from 'orbit_pos'.
+        The target should not point at the orbit position.
+        :position np.array   camera position vector(3d)
+        :target np.array     forwards vector(3d) in world coordinates to look along
+        :orbit_pos np.array  position where the camera will point 'down' towards
+        :frame str           coordinate frame convention, either 'body' | 'optical'
+    """
+
+    forwards = normalize(target - position)
+    orbit_dir = normalize(orbit_pos - position)
+
+    assert np.abs(1 - np.dot(orbit_dir, forwards)) > 1e-6, "camera should not point at the orbit position"
+    return look_basis(forwards, up=-orbit_dir, frame=frame)
+
+def look_at(position, target, up=World.up, frame="body"):
+    """
+        Canonical look at, formed by a camera position and target along with an up vector.
+        Giving a camera with a consistant perceived up direction (i.e. no roll). The target
+        should not be in the direction of the up vector.
+        :position np.array   camera position vector(3d)
+        :target np.array     forwards vector(3d) in world coordinates to look along
+        :up np.array         the world space 'up' vector
+        :frame str           coordinate frame convention, either 'body' | 'optical'
+    """
+    return look_basis(target - position, up=up, frame=frame)
+
+
+def look_at_pose(position, target, up=World.up, frame="body"):
+    return to_pose(position, look_at(position, target, up, frame))
+
+def rotate_pose(pose, roll=0, pitch=0, yaw=0):
+    q_orig = [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w]
+    q_rot  = quaternion_from_euler(deg_rad(roll), deg_rad(pitch), deg_rad(yaw))
+    q_new  = quaternion_multiply(q_rot, q_orig)
+    pose.orientation.x = q_new[0]
+    pose.orientation.y = q_new[1]
+    pose.orientation.z = q_new[2]
+    pose.orientation.w = q_new[3]
+    return pose

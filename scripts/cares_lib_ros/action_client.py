@@ -21,9 +21,11 @@ class ActionClient(object):
         self.idle = False
 
     def callback_done(self, state, result):
-        rospy.loginfo(f"{self.action_server} is done. State: {str(state)}, result: {str(result)}")
+        # rospy.loginfo(f"{self.action_server} is done. State: {str(state)}, result: {str(result)}")
         self.idle = True
+        self.state = state
         self.feedback = self.feedback_type()
+        self.result = result
         self.status = "Done"
 
     def callback_feedback(self, feedback):
