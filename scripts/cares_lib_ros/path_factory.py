@@ -13,21 +13,21 @@ from cares_lib_ros.utils import World
 import cares_lib_ros.utils as utils
 
 def scan_calibration(planning_link):
-    target_pose = np.array([-0.25, 0.6, -1.0])
+    target_pose = np.array([0.2, 0.6, -1.0])
 
-    start_x = -0.4
+    start_x = -0.2
     step_x  = 0.2
-    end_x   = -0.1
-    x_range = np.arange(start_x, end_x+step_x, step_x)
+    end_x   = 0.2
+    x_range = np.arange(start_x, end_x+step_x/2, step_x)
 
-    start_y = 0.5
+    start_y = 0.4
     step_y  = 0.10
-    end_y   = 0.7
+    end_y   = 0.6
     y_range = np.arange(start_y, end_y+step_y, step_y)
 
-    start_z =  -0.15
+    start_z =  -0.25
     step_z  =  0.05
-    end_z   =  0.0
+    end_z   =  -0.10
     z_range = np.arange(start_z, end_z+step_z, step_z)
 
     print(f"Z: {len(z_range)} Y: {len(y_range)} X: {len(x_range)}")
@@ -39,6 +39,7 @@ def scan_calibration(planning_link):
     path['pathway'] = []
     path['target']  = PoseStamped(pose=utils.to_pose(target_pose, rpy=[0,0,0]))
 
+    path['scanning'] = []
     roll = 10#degrees
     for z in z_range:
         for y in y_range:
@@ -49,6 +50,7 @@ def scan_calibration(planning_link):
                 pose_stamped.header.frame_id = planning_link
                 pose_stamped.pose = pose
                 path['pathway'].append(pose_stamped)
+                path['scanning'].append(pose_stamped)
     return path
 
 def tomato_path(planning_link):
@@ -84,6 +86,110 @@ def tomato_path(planning_link):
 
     return path
 
+def arc_path(planning_link, target_z=0.1):
+    path = {}
+
+    radius = 0.41 # distance from the target we are scanning at
+
+    # Target location relative to the planning_link
+    target_y = 0.75
+    target_z = target_z
+    
+    # marker pose to look from a given pose
+    pose = utils.look_at_pose(np.array([-0.0, 0.29, -0.1]), np.array([0, 0.7, -1.0]), up=World.up)
+    pose_stamped = PoseStamped()
+    pose_stamped.header.frame_id = planning_link
+    pose_stamped.pose = pose
+    path['global'] = {}
+
+    pose = utils.look_at_pose(np.array([0.0, 0.29, -0.15]), np.array([0.0, 0.85, -0.6]), up=World.up)
+    pose_stamped = PoseStamped()
+    pose_stamped.header.frame_id = planning_link
+    pose_stamped.pose = pose
+    path['global']['charuco'] = pose_stamped
+
+    # Width we scan with steps between
+    start_x = -0.4#-0.50
+    step_x  = 0.1
+    end_x   = 0.4# 0.5
+
+    path['scanning'] = []
+
+    # Arc we take to scan the target location - note 0 is striaght above, and -180 is straight below
+    #         0
+    #--------------------
+    #       -180
+    theta_range = np.linspace(-120, -50, 5)
+    for x in np.arange(start_x, end_x+step_x, step_x):        
+        for theta in theta_range:
+            theta = utils.deg_rad(theta)
+            y = radius * math.sin(theta) + target_y
+            z = radius * math.cos(theta) + target_z
+
+            pose = utils.look_at_pose(np.array([x, y, z]), np.array([x, target_y, target_z]), up=World.up)
+            pose_stamped = PoseStamped()
+            pose_stamped.header.frame_id = planning_link
+            pose_stamped.pose = pose
+            path['scanning'].append(pose_stamped)
+        theta_range = theta_range[::-1] 
+
+    path['scanning'].reverse()
+    return path
+
+def arc_path_bottom(planning_link):
+    path = {}
+
+    radius = 0.4# distance from the target we are scanning at
+
+    # Target location relative to the planning_link
+    target_y = 0.7
+    target_z = -0.25
+    
+    target_y_high = 0.735
+    target_y_low = 0.8
+
+    # marker pose to look from a given pose
+    pose = utils.look_at_pose(np.array([-0.0, 0.29, -0.1]), np.array([0, 0.7, -1.0]), up=World.up)
+    pose_stamped = PoseStamped()
+    pose_stamped.header.frame_id = planning_link
+    pose_stamped.pose = pose
+    path['global'] = {}
+
+    pose = utils.look_at_pose(np.array([0.0, 0.29 -0.15]), np.array([0.0, 0.85, -0.6]), up=World.up)
+    pose_stamped = PoseStamped()
+    pose_stamped.header.frame_id = planning_link
+    pose_stamped.pose = pose
+    path['global']['charuco'] = pose_stamped
+
+    # Width we scan with steps between
+    start_x = -0.4#-0.50
+    step_x  = 0.1
+    end_x   = 0.4# 0.5
+
+    path['scanning'] = []
+
+    # Arc we take to scan the target location - note 0 is striaght above, and -180 is straight below
+    #         0
+    #--------------------
+    #       -180
+    theta_range = np.linspace(-120, -50, 5)
+    for x in np.arange(start_x, end_x+step_x, step_x):        
+        for theta in theta_range:
+            target_y = target_y_low if theta < -90 else target_y_high
+            theta = utils.deg_rad(theta)
+            y = radius * math.sin(theta) + target_y
+            z = radius * math.cos(theta) + target_z
+
+            look_at_z = z if theta < math.radians(-80) else target_z
+            pose = utils.look_at_pose(np.array([x, y, z]), np.array([x, target_y, look_at_z]), up=World.up)
+            pose_stamped = PoseStamped()
+            pose_stamped.header.frame_id = planning_link
+            pose_stamped.pose = pose
+            path['scanning'].append(pose_stamped)
+        theta_range = theta_range[::-1] 
+
+    path['scanning'].reverse()
+    return path
 
 def plane_path(planning_link):
     
@@ -92,25 +198,25 @@ def plane_path(planning_link):
     target_y = 0.6
     target_z = 0.3
 
-    start_x = -0.4
+    start_x = -0.5
     step_x  =  0.1
     end_x   =  0.5
 
     y = 0.4
 
-    start_z = target_z - 0.4
+    start_z = target_z - 0.2
     step_z  = 0.1
     end_z   = target_z + 0.3
 
     path['global'] = {}
 
-    pose = utils.look_at_pose(np.array([0.0, 0.4, 0.5]), np.array([0, 0.77, 1.2]), up=World.up)
+    pose = utils.look_at_pose(np.array([-0.3, 0.4, 0.0]), np.array([-0.3, 0.8, -0.6]), up=World.up)
     pose_stamped = PoseStamped()
     pose_stamped.header.frame_id = planning_link
     pose_stamped.pose = pose
     path['global']['aruco'] = pose_stamped
     
-    pose = utils.look_at_pose(np.array([0.0, 0.5, 0.8]), np.array([0, 0.77, 1.2]), up=World.up)
+    pose = utils.look_at_pose(np.array([0.3, 0.4, 0.0]), np.array([0.3, 0.8, -0.6]), up=World.up)
     pose_stamped = PoseStamped()
     pose_stamped.header.frame_id = planning_link
     pose_stamped.pose = pose
@@ -130,50 +236,6 @@ def plane_path(planning_link):
             pose_stamped.pose = pose
             path['scanning'].append(pose_stamped)
         z_range = z_range[::-1]
-    return path
-
-
-def arc_path(planning_link):
-    path = {}
-
-    radius = 0.3 # distance from the target we are scanning at
-
-    # Target location relative to the planning_link
-    target_y = 0.88
-    target_z = 0.1
-    
-    # marker pose to look from a given pose
-    pose = utils.look_at_pose(np.array([0.0, 0.35, 0.2]), np.array([0, 0.77, 1.0]), up=World.up)
-    pose_stamped = PoseStamped()
-    pose_stamped.header.frame_id = planning_link
-    pose_stamped.pose = pose
-    path['global'] = pose_stamped
-
-    # Width we scan with steps between
-    start_x = 0.0#-0.50
-    step_x  = 0.1
-    end_x   = 0.4# 0.5
-
-    path['scanning'] = []
-
-    # Arc we take to scan the target location - note 0 is striaght above, and -180 is straight below
-    #         0
-    #--------------------
-    #       -180
-    theta_range = np.arange(-120, -40, 10)
-    for x in np.arange(start_x, end_x+step_x, step_x):        
-        for theta in theta_range:
-            theta = utils.deg_rad(theta)
-            y = radius * math.sin(theta) + target_y
-            z = radius * math.cos(theta) + target_z
-
-            pose = utils.look_at_pose(np.array([x, y, z]), np.array([x, target_y, target_z]), up=World.up)
-            pose_stamped = PoseStamped()
-            pose_stamped.header.frame_id = planning_link
-            pose_stamped.pose = pose
-            path['scanning'].append(pose_stamped)
-        theta_range = theta_range[::-1] 
-
     return path
 
 def nerf_path(planning_link):
@@ -195,13 +257,13 @@ def nerf_path(planning_link):
 
     path['global'] = {}
 
-    pose = utils.look_at_pose(np.array([0.0, 0.35, 0.5]), np.array([0, 0.77, 1.0]), up=World.up)
+    pose = utils.look_at_pose(np.array([-0.3, 0.4, 0.0]), np.array([-0.3, 0.8, -0.6]), up=World.up)
     pose_stamped = PoseStamped()
     pose_stamped.header.frame_id = planning_link
     pose_stamped.pose = pose
     path['global']['aruco'] = pose_stamped
     
-    pose = utils.look_at_pose(np.array([0.0, 0.35, 0.5]), np.array([0, 0.77, 1.0]), up=World.up)
+    pose = utils.look_at_pose(np.array([0.3, 0.4, 0.0]), np.array([0.3, 0.8, -0.6]), up=World.up)
     pose_stamped = PoseStamped()
     pose_stamped.header.frame_id = planning_link
     pose_stamped.pose = pose
@@ -223,133 +285,27 @@ def nerf_path(planning_link):
         z_range = z_range[::-1]
     return path
 
-def arc_tower(planning_link, look_z=False):
-    path = {}
-
-    radius = 0.3 # distance from the target we are scanning at
-
-    # Target location relative to the planning_link
-    target_y = 0.85
-    target_z = 0.25
-    
-    path['global'] = {}
-
-    pose = utils.look_at_pose(np.array([0.0, 0.35, 0.2]), np.array([0, 0.77, 1.0]), up=World.up)
-    pose_stamped = PoseStamped()
-    pose_stamped.header.frame_id = planning_link
-    pose_stamped.pose = pose
-    path['global']['aruco'] = pose_stamped
-    
-    pose = utils.look_at_pose(np.array([0.3, 0.4, 0.0]), np.array([0.3, 0.8, -0.6]), up=World.up)
-    pose_stamped = PoseStamped()
-    pose_stamped.header.frame_id = planning_link
-    pose_stamped.pose = pose
-    path['global']['charuco'] = pose_stamped
-
-    
-    start_z = 0.1
-    step_z  = 0.2
-    end_z   = 0.6
-    z_range = np.arange(start_z, end_z+step_z, step_z)
-
-    start_x = -0.5
-    step_x  = 0.1
-    end_x   = 0.5
-    x_range = np.arange(start_x, end_x+step_x, step_x)
-
-    max_y = 0.55
-    min_y = 0.35
-    step_y = (max_y - min_y)/(len(x_range)/2)
-
-    path['scanning'] = []
-    for z in z_range:
-        step_y = -step_y
-        y = max_y
-        for x in x_range:
-            y = y + step_y
-            if y < min_y:0.3
-            path['scanning'].append(pose_stamped)
-
-        x_range = x_range[::-1]
-
-    return path
-
-def plane_path_cutting(planning_link):
-    
-    path = {}
-    
-    target_y = 0.6
-    target_z = 0.3
-
-    start_x = -0.4
-    step_x  =  0.1
-    end_x   =  0.4
-
-    y = 0.4
-
-    start_z = target_z - 0.2
-    step_z  = 0.1
-    end_z   = target_z + 0.2
-
-    path['global'] = {}
-
-    pose = utils.look_at_pose(np.array([0.0, 0.35, 0.2]), np.array([0, 0.77, 1.0]), up=World.up)
-    pose_stamped = PoseStamped()
-    pose_stamped.header.frame_id = planning_link
-    pose_stamped.pose = pose
-    path['global']['aruco'] = pose_stamped
-    
-    pose = utils.look_at_pose(np.array([-0.3, 0.4, 0.0]), np.array([-0.3, 0.8, -0.6]), up=World.up)
-    pose_stamped = PoseStamped()
-    pose_stamped.header.frame_id = planning_link
-    pose_stamped.pose = pose
-    path['global']['charuco'] = pose_stamped
-
-    path['scanning'] = []
-    z_range = np.arange(start_z, end_z+0.1, step_z)
-    for i, z in enumerate(z_range):
-        # for y in np.arange(start_y, end_y+step_y, step_y):
-        x_range = np.arange(start_x, end_x+step_x, step_x) if not i%2 else np.arange(end_x, start_x-step_x, -step_x)
-
-        for x in x_range:    
-            # Flat
-            pose = utils.look_at_pose(np.array([x, y, z]), np.array([x, y+0.2, z]), up=World.up)
-            pose_stamped = PoseStamped()
-            pose_stamped.header.frame_id = planning_link
-            pose_stamped.pose = pose
-            path['scanning'].append(pose_stamped)
-        z_range = z_range[::-1]
-    return path
-
 def plane_path_test(planning_link):
     
     path = {}
     
     target_y = 0.6
-    target_z = 0.45
+    target_z = 0.1
 
-    start_x = -0.1
+    start_x = -0.0
     step_x  =  0.1
-    end_x   =  0.1
+    end_x   =  0.0
 
     y = 0.4
 
     start_z = target_z
     step_z  = 0.1
     end_z   = target_z
-    
+    pose = utils.look_at_pose(np.array([0.0, 0.4, -0.15]), np.array([0.0, 0.85, -0.6]), up=World.up)
+    pose_stamped = PoseStamped()
+    pose_stamped.header.frame_id = planning_link
+    pose_stamped.pose = pose
     path['global'] = {}
-
-    pose = utils.look_at_pose(np.array([0.0, 0.4, 0.5]), np.array([0, 0.77, 1.2]), up=World.up)
-    pose_stamped = PoseStamped()
-    pose_stamped.header.frame_id = planning_link
-    pose_stamped.pose = pose
-    path['global']['aruco'] = pose_stamped
-    
-    pose = utils.look_at_pose(np.array([0.0, 0.4, 0.5]), np.array([0, 0.77, 1.2]), up=World.up)
-    pose_stamped = PoseStamped()
-    pose_stamped.header.frame_id = planning_link
-    pose_stamped.pose = pose
     path['global']['charuco'] = pose_stamped
 
     path['scanning'] = []
@@ -449,7 +405,7 @@ class PathFactory(object):
         if path_id == 0:
             return plane_path(planning_link)
         elif path_id == 1:
-            return plane_path_cutting(planning_link)
+            return scan_point(planning_link)
         elif path_id == 2:
             return scan_calibration(planning_link)
         elif path_id == 3:
@@ -459,13 +415,20 @@ class PathFactory(object):
         elif path_id == 5:
             return test_path(planning_link)
         elif path_id == 6:
-            return plane_path_test(planning_link)
+            return plane_path_bot(planning_link)
         elif path_id == 7:
             return nerf_path(planning_link)
+        elif path_id == 8:
+            return plane_path_test(planning_link)
         elif path_id == 9:
             return arc_tower(planning_link, False)
         elif path_id == 10:
             return arc_tower(planning_link, True)
+        elif path_id == 11:
+            return arc_path_bottom(planning_link)
+        elif path_id == 12:
+            return arc_path(planning_link, target_z=0.2)
+        
         return []
 
 def main():
