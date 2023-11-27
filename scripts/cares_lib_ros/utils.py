@@ -43,6 +43,12 @@ def rad_deg(a):
 
 def quaternion_to_array(q):
     return np.array([q.x, q.y, q.z, q.w])
+ 
+def point_to_array(p):
+    return np.array([p.x, p.y, p.z])
+
+def distance_between_points(p1, p2):
+    return math.dist(point_to_array(p1), point_to_array(p2))
 
 def quaternion_multiply(q0, q1):
     """
