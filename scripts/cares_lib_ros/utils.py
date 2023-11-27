@@ -341,6 +341,50 @@ def create_pcd(rgb_image, depth_image, camera_info, depth_scale=1, depth_trunc=1
 
     return pcd
 
+
+def create_instance_pcds_fruitlets(image, depth, masks, camera_info, depth_scale=1, depth_trunc=1.0, rotate=False):             
+    # Generate instance masked depths
+    instance_pcds = {}
+
+    for key, value in masks.items():
+        if 'fruitlet' in value:
+            mask = value['fruitlet']
+            bool_mask = ((mask[:, :, 0] != 0) & (mask[:, :, 1] != 0) & (mask[:, :, 2] != 0)).astype(bool)
+            fruitlet_depth = np.where(bool_mask, depth, 0)
+
+        if 'calyx' in value:
+            mask = value['calyx']
+            if len(mask) == 0:            # this condition is added to avoid [], when no calyx is detected
+                bool_mask = np.array([]) 
+                calyx_depth = np.zeros_like(depth)  
+            else:
+                bool_mask = ((mask[:, :, 0] != 0) & (mask[:, :, 1] != 0) & (mask[:, :, 2] != 0)).astype(bool)
+                calyx_depth = np.where(bool_mask, depth, 0)
+
+        if 'stem' in value:
+            mask = value['stem']
+            if len(mask) == 0:
+                bool_mask = np.array([])  
+                stem_depth = np.zeros_like(depth)  
+            else:
+                bool_mask = ((mask[:, :, 0] != 0) & (mask[:, :, 1] != 0) & (mask[:, :, 2] != 0)).astype(bool)
+                stem_depth = np.where(bool_mask, depth, 0)
+
+        instance_pcds[key] = {}
+        fruitlet_pcd = create_pcd(image, fruitlet_depth, camera_info) # create_pcd(image, depth_mask, camera_info.K)        
+        calyx_pcd = create_pcd(image, calyx_depth, camera_info)
+        stem_pcd = create_pcd(image, stem_depth, camera_info)
+        
+        if fruitlet_pcd.has_points():
+            instance_pcds[key]["mask"] = value['fruitlet']
+            instance_pcds[key]["fruitlet"] = fruitlet_pcd
+            instance_pcds[key]["calyx"] = calyx_pcd
+            instance_pcds[key]["stem"] = stem_pcd
+        if "fruitlet" not in instance_pcds[key].keys():
+            del instance_pcds[key]
+
+    return instance_pcds
+
 def create_instance_pcds(image, depth, masks, camera_info, depth_scale=1, depth_trunc=1.0, rotate=False):              #understand this part
     # Generate instance masked depths
     instance_pcds = {}
